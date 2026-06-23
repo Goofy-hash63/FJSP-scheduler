@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore")
 from FJSP_data import (
     PANEL_TYPES, Panneau, OrdreFabrication, Statut,
     get_duree_avec_manutention, get_duree_totale_theorique,
-    get_route, get_machines_disponibles, get_temp
+    get_route, get_machines_disponibles, get_temps,
     prochain_debut_shift, TEMPS_MANUTENTION,
     MACHINE_VERS_POSTE, MACHINES_PAR_POSTE,
 )
