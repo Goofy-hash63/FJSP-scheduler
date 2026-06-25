@@ -248,6 +248,76 @@ def ordonnancer(panneaux, t_actuel, modele=None, mode="EDD"):
 # 6. GANTT
 # =============================================================================
 
+def _get_unite_stars(df: pd.DataFrame, panneaux: list, mode_axe: str):
+    """Calcule les annotations étoiles ⭐ à placer dans le Gantt.
+
+    Une étoile est placée sur la machine du dernier panneau terminé de chaque
+    groupe de 7 (une unité = 7 types).  La position X correspond à la fin
+    maximale du groupe, la position Y à la machine correspondante.
+
+    Retourne une liste de dicts {x, y, label, mode} prêts à injecter via
+    fig.add_annotation().
+    """
+    if df is None or df.empty or not panneaux:
+        return []
+
+    # Identifier l'OF de base de chaque panneau pour regrouper par unité.
+    # Convention : on regroupe par séquence d'entrée (ordre d'ajout),
+    # lots de 7 panneaux consécutifs.
+    mgh_ids = [p.mgh_id for p in panneaux]
+    stars = []
+
+    for lot_start in range(0, len(mgh_ids), 7):
+        lot = mgh_ids[lot_start: lot_start + 7]
+        if len(lot) < 7:
+            break  # lot incomplet → pas d'étoile
+
+        df_lot = df[df["MGH"].isin(lot)]
+        if df_lot.empty:
+            continue
+
+        fin_max = df_lot["fin"].max()
+        row_max = df_lot[df_lot["fin"] == fin_max].iloc[0]
+        machine = row_max["machine"]
+        n_unite = lot_start // 7 + 1
+
+        if mode_axe == "datetime":
+            x_val = h_to_dt(fin_max)
+        elif mode_axe == "shifts":
+            x_val = h_shift_to_dt(fin_max)
+        else:  # heures
+            x_val = fin_max
+
+        stars.append({
+            "x"    : x_val,
+            "y"    : machine,
+            "label": f"⭐ U{n_unite}",
+            "mode" : mode_axe,
+        })
+
+    return stars
+
+
+def _add_unite_stars(fig: go.Figure, stars: list):
+    """Injecte les annotations étoile dans une figure Plotly."""
+    for s in stars:
+        fig.add_annotation(
+            x=s["x"], y=s["y"],
+            text=s["label"],
+            showarrow=True,
+            arrowhead=2, arrowsize=1, arrowwidth=1.5,
+            arrowcolor="#FFD700",
+            font=dict(size=14, color="#FFD700"),
+            bgcolor="rgba(0,0,0,0.55)",
+            bordercolor="#FFD700",
+            borderwidth=1,
+            borderpad=3,
+            ax=0, ay=-30,
+            xanchor="center",
+            yanchor="bottom",
+        )
+
+
 def creer_gantt(df: pd.DataFrame, panneaux: list,
                 mode_axe: str = "datetime") -> go.Figure:
     if df is None or df.empty:
@@ -371,6 +441,7 @@ def creer_gantt(df: pd.DataFrame, panneaux: list,
                         bordercolor=MGRAY, borderwidth=1),
             margin=dict(l=10, r=10, t=40, b=10),
         )
+        _add_unite_stars(fig, _get_unite_stars(df, panneaux, "shifts"))
         return fig
 
     # ---------------------------------------------------------- DATETIME (continu)
@@ -472,6 +543,8 @@ def creer_gantt(df: pd.DataFrame, panneaux: list,
                             bordercolor=MGRAY, borderwidth=1),
         margin       = dict(l=10, r=10, t=40, b=10),
     )
+    # Étoiles ⭐ — fin de chaque lot de 7 panneaux (une unité complète)
+    _add_unite_stars(fig, _get_unite_stars(df, panneaux, mode_axe))
     return fig
 
 # =============================================================================
@@ -1553,4 +1626,4 @@ elif PAGE == "🔔 Aléas":
                     "Retour est." : h_to_str(a.t_retour_estime),
                     "Retour réel" : h_to_str(a.t_retour_reel) if a.t_retour_reel else "—",
                 })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True) 
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
