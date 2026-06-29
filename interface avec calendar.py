@@ -18,7 +18,18 @@ from FJSP_env import (
     FJSPEnv, N_MACHINES, ALL_MACHINES, FENETRE_ACTIVE,
     CAPACITE_STOCK_STANDBY, HORIZON,
 )
+@st.cache_resource # This caches the model so it only loads once, keeping your app fast!
+def load_ppo_model():
+    try:
+        from sb3_contrib import MaskablePPO
+        # Looks for 'best_model.zip' in your GitHub repo directory
+        if os.path.exists("best_model.zip"):
+            return MaskablePPO.load("best_model")
+    except Exception as e:
+        st.warning(f"Impossible de charger le modèle PPO: {e}")
+    return None
 
+ppo_model = load_ppo_model()
 # =============================================================================
 # 0. CONFIG PAGE
 # =============================================================================
