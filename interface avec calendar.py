@@ -29,71 +29,116 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-NAVY   = "#00205B"
-CYAN   = "#009FDF"
+NAVY   = "#0B1E3D"   # Ink — primary structural colour, headers & titles
+CYAN   = "#0077C8"   # Aerospace Blue — primary accent / action
 WHITE  = "#FFFFFF"
-LGRAY  = "#F4F6F9"
-MGRAY  = "#D0D7E2"
-DGRAY  = "#6B7A99"
-RED    = "#E63946"
-GREEN  = "#2DC653"
-ORANGE = "#F4A020"
+LGRAY  = "#F3F5F8"   # Cloud — page background
+MGRAY  = "#DBE1EA"   # Hairline — borders & dividers
+DGRAY  = "#5B6B82"   # Slate — secondary text
+RED    = "#C8333B"   # Stop — critical / late
+GREEN  = "#1E9E6A"   # Go — on-time / nominal
+ORANGE = "#D98B2B"   # Signal Amber — caution
 
 st.markdown(f"""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+:root {{
+    --ink: {NAVY}; --blue: {CYAN}; --cloud: {LGRAY}; --hairline: {MGRAY};
+    --slate: {DGRAY}; --stop: {RED}; --go: {GREEN}; --amber: {ORANGE};
+}}
 html, body, [class*="css"] {{
-    font-family: 'Segoe UI', Arial, sans-serif;
+    font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
     background-color: {LGRAY};
-    color: #1A1A2E;
+    color: #16213E;
+}}
+/* faint blueprint grid — signature texture, evokes engineering drawings */
+[data-testid="stAppViewContainer"] > .main {{
+    background-image:
+        linear-gradient(rgba(11,30,61,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(11,30,61,0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
+}}
+h1, h2, h3, .aa-header-title, .aa-section {{
+    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+}}
+code, .stCode, [data-testid="stMetricValue"] {{
+    font-family: 'IBM Plex Mono', monospace !important;
 }}
 [data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, {NAVY} 0%, #001845 100%);
-    border-right: 3px solid {CYAN};
+    background: linear-gradient(180deg, {NAVY} 0%, #050F22 100%);
+    border-right: 1px solid rgba(255,255,255,0.08);
 }}
-[data-testid="stSidebar"] * {{ color: {WHITE} !important; }}
+[data-testid="stSidebar"] * {{ color: {WHITE} !important; font-family:'IBM Plex Sans', sans-serif; }}
 [data-testid="stSidebar"] .stSelectbox label,
 [data-testid="stSidebar"] .stDateInput label,
 [data-testid="stSidebar"] .stTimeInput label {{
-    color: {MGRAY} !important; font-size: 0.82rem;
+    color: rgba(255,255,255,0.55) !important; font-size: 0.78rem;
 }}
 .aa-header {{
-    background: linear-gradient(135deg, {NAVY} 0%, #00318A 60%, {CYAN} 100%);
-    padding: 18px 32px; border-radius: 12px; margin-bottom: 24px;
-    box-shadow: 0 4px 20px rgba(0,32,91,0.25);
+    position: relative; overflow: hidden;
+    background: linear-gradient(120deg, {NAVY} 0%, #102A52 55%, #0E3F66 100%);
+    padding: 22px 32px; border-radius: 6px; margin-bottom: 26px;
+    border-left: 4px solid {CYAN};
+    box-shadow: 0 8px 24px rgba(11,30,61,0.18);
 }}
-.aa-header-title {{ font-size:1.7rem; font-weight:700; color:{WHITE}; margin:0; }}
-.aa-header-sub {{ font-size:0.9rem; color:rgba(255,255,255,0.75); margin:4px 0 0; }}
+.aa-header::after {{
+    content:""; position:absolute; inset:0;
+    background-image: repeating-linear-gradient(
+        90deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px,
+        transparent 1px, transparent 64px);
+    pointer-events:none;
+}}
+.aa-header-title {{ font-size:1.55rem; font-weight:600; color:{WHITE}; margin:0;
+    letter-spacing:-0.01em; position:relative; }}
+.aa-header-sub {{ font-size:0.85rem; color:rgba(255,255,255,0.68); margin:6px 0 0;
+    font-family:'IBM Plex Mono', monospace; position:relative; }}
 .aa-card {{
-    background:{WHITE}; border-radius:10px; padding:20px 24px;
+    background:{WHITE}; border-radius:8px; padding:18px 22px;
     border:1px solid {MGRAY}; margin-bottom:16px;
-    box-shadow:0 2px 8px rgba(0,32,91,0.07);
+    box-shadow:0 1px 3px rgba(11,30,61,0.06);
 }}
-.aa-card-title {{ font-size:0.78rem; font-weight:600; color:{DGRAY};
-    text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; }}
-.aa-card-value {{ font-size:2rem; font-weight:700; color:{NAVY}; }}
-.aa-card-sub {{ font-size:0.82rem; color:{DGRAY}; margin-top:4px; }}
+.aa-card-title {{ font-size:0.72rem; font-weight:600; color:{DGRAY};
+    text-transform:uppercase; letter-spacing:0.09em; margin-bottom:8px;
+    font-family:'IBM Plex Mono', monospace; }}
+.aa-card-value {{ font-size:1.9rem; font-weight:600; color:{NAVY};
+    font-family:'Space Grotesk', sans-serif; }}
+.aa-card-sub {{ font-size:0.8rem; color:{DGRAY}; margin-top:4px; }}
 .aa-card-accent {{ border-top:3px solid {CYAN}; }}
 .aa-card-ok     {{ border-top:3px solid {GREEN}; }}
 .aa-card-warn   {{ border-top:3px solid {ORANGE}; }}
 .aa-card-danger {{ border-top:3px solid {RED}; }}
 .aa-section {{
-    font-size:1.1rem; font-weight:700; color:{NAVY};
-    border-left:4px solid {CYAN}; padding-left:12px; margin:20px 0 12px;
+    font-size:0.92rem; font-weight:600; color:{NAVY};
+    border-left:3px solid {CYAN}; padding-left:12px; margin:22px 0 14px;
+    text-transform:uppercase; letter-spacing:0.04em;
 }}
+/* Route stepper — signature element: panels are routed through machining
+   posts, so the route indicator reads like a real process-flow diagram. */
+.route-flow {{ display:flex; align-items:center; flex-wrap:wrap; margin:6px 0; }}
 .route-step {{
-    display:inline-block; padding:3px 10px; border-radius:12px;
-    font-size:0.78rem; font-weight:600; margin:2px;
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px 4px 8px; font-size:0.74rem; font-weight:600;
+    font-family:'IBM Plex Mono', monospace; letter-spacing:0.01em;
+    border-radius:3px; margin:2px 0;
 }}
-.route-done    {{ background:#d4edda; color:#155724; }}
-.route-current {{ background:{CYAN}; color:{WHITE}; }}
-.route-todo    {{ background:{LGRAY}; color:{DGRAY}; border:1px solid {MGRAY}; }}
+.route-step::before {{ content:""; width:7px; height:7px; flex:none; }}
+.route-done {{ background:#E9F6F0; color:#147A52; border:1px solid #B9E3CE; }}
+.route-done::before {{ background:{GREEN}; border-radius:50%; }}
+.route-current {{ background:{NAVY}; color:{WHITE}; }}
+.route-current::before {{ background:{CYAN}; }}
+.route-todo {{ background:{WHITE}; color:{DGRAY}; border:1px dashed {MGRAY}; }}
+.route-todo::before {{ background:{WHITE}; border:1.5px solid {MGRAY}; border-radius:50%; }}
+.route-connector {{ color:{MGRAY}; margin:0 2px; font-family:'IBM Plex Mono', monospace; }}
 .stButton > button[kind="primary"] {{
-    background: linear-gradient(90deg, {NAVY}, #00318A) !important;
+    background: {NAVY} !important;
     color:{WHITE} !important; border:none !important;
-    border-radius:8px !important; font-weight:600 !important;
+    border-radius:5px !important; font-weight:600 !important;
+    font-family:'IBM Plex Sans', sans-serif !important;
+    letter-spacing:0.01em;
 }}
 .stButton > button[kind="primary"]:hover {{
-    background: linear-gradient(90deg, {CYAN}, #0077B6) !important;
+    background: {CYAN} !important;
 }}
 hr {{ border-color:{MGRAY} !important; margin:16px 0 !important; }}
 </style>
@@ -107,9 +152,9 @@ MODEL_PATH  = "best_model.zip"
 T_REFERENCE = datetime(2026, 1, 1, 0, 0)
 
 COULEURS_TYPE = {
-    "Sup AV": "#009FDF", "Sup AR": "#00205B",
-    "Inf AV": "#E63946", "Ar D":   "#2DC653",
-    "Ar G":   "#F4A020", "Av D":   "#7B2FBE", "Av G": "#006D77",
+    "Sup AV": "#0077C8", "Sup AR": "#0B1E3D",
+    "Inf AV": "#C8333B", "Ar D":   "#1E9E6A",
+    "Ar G":   "#D98B2B", "Av D":   "#6B4FA0", "Av G": "#147A7A",
 }
 
 # =============================================================================
@@ -162,23 +207,22 @@ def _split_op_shifts(debut_h: float, fin_h: float):
 # =============================================================================
 
 def _render_route_html(panneau: Panneau) -> str:
-    """Génère le HTML de la route avec cases cochées (fait / en cours / à faire)."""
+    """Génère la gamme sous forme de stepper process-flow
+    (fait / en cours / à faire) — diagramme inspiré des plans de gamme."""
     route  = panneau.route
     op_cur = panneau.op_courante
-    html   = ""
+    html   = '<div class="route-flow">'
     for i, poste in enumerate(route):
         if i < op_cur:
-            css  = "route-done"
-            icon = "✅ "
+            css = "route-done"
         elif i == op_cur:
-            css  = "route-current"
-            icon = "⚙️ "
+            css = "route-current"
         else:
-            css  = "route-todo"
-            icon = ""
-        html += f'<span class="route-step {css}">{icon}{poste}</span>'
+            css = "route-todo"
+        html += f'<span class="route-step {css}">{poste}</span>'
         if i < len(route) - 1:
-            html += ' <span style="color:#aaa">→</span> '
+            html += '<span class="route-connector">┄┄&gt;</span>'
+    html += '</div>'
     return html
 
 # =============================================================================
@@ -305,10 +349,10 @@ def _add_unite_stars(fig: go.Figure, stars: list):
             text=s["label"],
             showarrow=True,
             arrowhead=2, arrowsize=1, arrowwidth=1.5,
-            arrowcolor="#FFD700",
-            font=dict(size=14, color="#FFD700"),
+            arrowcolor="#C9A646",
+            font=dict(size=14, color="#C9A646"),
             bgcolor="rgba(0,0,0,0.55)",
-            bordercolor="#FFD700",
+            bordercolor="#C9A646",
             borderwidth=1,
             borderpad=3,
             ax=0, ay=-30,
@@ -385,10 +429,10 @@ def creer_gantt(df: pd.DataFrame, panneaux: list,
             x_now = h_shift_to_dt(t_now)
             fig.add_shape(type="line", x0=x_now, x1=x_now, y0=0, y1=1,
                           xref="x", yref="paper",
-                          line=dict(color="#FF6B00", width=2.5))
+                          line=dict(color="#D98B2B", width=2.5))
             fig.add_annotation(x=x_now, y=1.04, xref="x", yref="paper",
                                text="▼ Maintenant", showarrow=False,
-                               font=dict(size=10, color="#FF6B00"), xanchor="center")
+                               font=dict(size=10, color="#D98B2B"), xanchor="center")
 
         # Due dates
         vues = set()
@@ -433,7 +477,7 @@ def creer_gantt(df: pd.DataFrame, panneaux: list,
             barmode="overlay",
             height=max(550, len(ALL_MACHINES) * 26),
             plot_bgcolor=WHITE, paper_bgcolor=WHITE,
-            font=dict(family="Segoe UI, Arial", size=12, color=NAVY),
+            font=dict(family="IBM Plex Sans, Arial", size=12, color=NAVY),
             xaxis=x_axis,
             legend=dict(title=dict(text="Type panneau"),
                         bgcolor="rgba(255,255,255,0.9)",
@@ -467,10 +511,10 @@ def creer_gantt(df: pd.DataFrame, panneaux: list,
             x_now = h_to_dt(t_now)
             fig.add_shape(type="line", x0=x_now, x1=x_now, y0=0, y1=1,
                           xref="x", yref="paper",
-                          line=dict(color="#FF6B00", width=2.5))
+                          line=dict(color="#D98B2B", width=2.5))
             fig.add_annotation(x=x_now, y=1.04, xref="x", yref="paper",
                                text="▼ Maintenant", showarrow=False,
-                               font=dict(size=10, color="#FF6B00"), xanchor="center")
+                               font=dict(size=10, color="#D98B2B"), xanchor="center")
 
         # Due dates
         vues = set()
@@ -534,7 +578,7 @@ def creer_gantt(df: pd.DataFrame, panneaux: list,
     fig.update_layout(
         height       = max(550, len(ALL_MACHINES) * 26),
         plot_bgcolor = WHITE, paper_bgcolor = WHITE,
-        font         = dict(family="Segoe UI, Arial", size=12, color=NAVY),
+        font         = dict(family="IBM Plex Sans, Arial", size=12, color=NAVY),
         xaxis        = x_axis,
         yaxis        = dict(title="Bâti / Machine", tickfont=dict(size=11, color=NAVY)),
         legend       = dict(title=dict(text="Type panneau"),
@@ -660,22 +704,30 @@ with st.sidebar:
 
     st.markdown(
         f'<div style="text-align:center;padding:4px 0 8px">'
-        f'<p style="color:{WHITE};font-size:1.05rem;font-weight:700;margin:0">✈️ BOMBARDIER</p>'
-        f'<p style="color:{CYAN};font-size:0.72rem;letter-spacing:0.14em;'
-        f'text-transform:uppercase;margin:4px 0 0">FJSP Scheduler</p>'
+        f'<p style="color:{WHITE};font-size:1.0rem;font-weight:600;margin:0;'
+        f'font-family:\'Space Grotesk\',sans-serif">✈️ BOMBARDIER</p>'
+        f'<p style="color:{CYAN};font-size:0.68rem;letter-spacing:0.16em;'
+        f'text-transform:uppercase;margin:4px 0 0;'
+        f'font-family:\'IBM Plex Mono\',monospace">FJSP Scheduler</p>'
         f'</div>', unsafe_allow_html=True)
     st.divider()
 
-    # Mode agent
+    # Mode agent — badge instrumentation (accent gauche, coins carrés)
     if mode == "PPO":
         st.markdown(
-            f'<div style="background:#1A7A3C;color:#fff;border-radius:20px;'
-            f'padding:6px 14px;font-weight:700;text-align:center">🤖 Agent PPO actif</div>',
+            f'<div style="background:rgba(30,158,106,0.16);color:{WHITE};'
+            f'border-left:3px solid {GREEN};border-radius:3px;'
+            f'padding:7px 12px;font-weight:600;font-size:0.82rem;'
+            f'font-family:\'IBM Plex Mono\',monospace;letter-spacing:0.02em">'
+            f'AGENT PPO — ACTIF</div>',
             unsafe_allow_html=True)
     else:
         st.markdown(
-            f'<div style="background:#005F8A;color:#fff;border-radius:20px;'
-            f'padding:6px 14px;font-weight:700;text-align:center">📐 Mode EDD</div>',
+            f'<div style="background:rgba(0,119,200,0.16);color:{WHITE};'
+            f'border-left:3px solid {CYAN};border-radius:3px;'
+            f'padding:7px 12px;font-weight:600;font-size:0.82rem;'
+            f'font-family:\'IBM Plex Mono\',monospace;letter-spacing:0.02em">'
+            f'MODE EDD — FALLBACK</div>',
             unsafe_allow_html=True)
         st.caption(f"Modèle attendu :\n`{MODEL_PATH}`")
 
@@ -683,8 +735,9 @@ with st.sidebar:
 
     # Heure courante
     st.markdown(
-        f'<p style="color:{MGRAY};font-size:0.8rem;font-weight:600;'
-        f'text-transform:uppercase;letter-spacing:0.08em">Heure courante</p>',
+        f'<p style="color:rgba(255,255,255,0.55);font-size:0.72rem;font-weight:600;'
+        f'text-transform:uppercase;letter-spacing:0.1em;'
+        f'font-family:\'IBM Plex Mono\',monospace">Heure courante</p>',
         unsafe_allow_html=True)
     d_sel  = st.date_input("Date", value=T_REFERENCE.date(), label_visibility="collapsed")
     h_sel  = st.time_input("Heure",
@@ -705,18 +758,23 @@ with st.sidebar:
     stock_color = RED if n_std >= CAPACITE_STOCK_STANDBY else \
                   ORANGE if stock_pct >= 0.7 else GREEN
     st.markdown(
-        f'<div style="color:{MGRAY};font-size:0.82rem">'
-        f'📋 <b style="color:{WHITE}">{n_pan}</b> panneau(x)<br>'
-        f'⚙️ <b style="color:{WHITE}">{n_enc}</b> en cours &nbsp;'
-        f'🔴 <b style="color:{WHITE}">{n_std}</b> standby</div>',
+        f'<div style="color:rgba(255,255,255,0.55);font-size:0.8rem;'
+        f'font-family:\'IBM Plex Mono\',monospace">'
+        f'PANNEAUX &nbsp;<b style="color:{WHITE}">{n_pan}</b><br>'
+        f'EN COURS &nbsp;<b style="color:{WHITE}">{n_enc}</b> &nbsp;&nbsp;'
+        f'STANDBY &nbsp;<b style="color:{WHITE}">{n_std}</b></div>',
         unsafe_allow_html=True)
     st.markdown(
-        f'<div style="margin-top:6px">'
-        f'<div style="font-size:0.72rem;color:{MGRAY}">Stock STANDBY</div>'
-        f'<div style="background:#1a2a4a;border-radius:6px;height:10px;margin-top:3px">'
+        f'<div style="margin-top:8px">'
+        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.45);'
+        f'font-family:\'IBM Plex Mono\',monospace;letter-spacing:0.06em">'
+        f'STOCK STANDBY</div>'
+        f'<div style="background:rgba(255,255,255,0.1);border-radius:3px;'
+        f'height:8px;margin-top:4px">'
         f'<div style="background:{stock_color};width:{min(stock_pct*100,100):.0f}%;'
-        f'height:10px;border-radius:6px"></div></div>'
-        f'<div style="font-size:0.72rem;color:{stock_color};margin-top:2px">'
+        f'height:8px;border-radius:3px"></div></div>'
+        f'<div style="font-size:0.7rem;color:{stock_color};margin-top:3px;'
+        f'font-family:\'IBM Plex Mono\',monospace">'
         f'{n_std} / {CAPACITE_STOCK_STANDBY}</div></div>',
         unsafe_allow_html=True)
     st.divider()
@@ -933,19 +991,18 @@ if PAGE == "📋 Commandes":
                 route_p       = get_route(type_panneau)
                 op_idx        = next(
                     (i for i, p in enumerate(route_p) if p == poste_machine), 0)
-                steps_html = ""
+                steps_html = '<div class="route-flow">'
                 for i, p in enumerate(route_p):
                     if i < op_idx:
-                        steps_html += f'<span class="route-step route-done">✅ {p}</span> → '
+                        steps_html += f'<span class="route-step route-done">{p}</span>'
                     elif i == op_idx:
-                        steps_html += f'<span class="route-step route-current">⚙️ {p}</span> → '
+                        steps_html += f'<span class="route-step route-current">{p}</span>'
                     else:
                         steps_html += f'<span class="route-step route-todo">{p}</span>'
-                        if i < len(route_p) - 1:
-                            steps_html += " → "
-                st.markdown(
-                    f'<div style="margin:8px 0;line-height:2.2">{steps_html}</div>',
-                    unsafe_allow_html=True)
+                    if i < len(route_p) - 1:
+                        steps_html += '<span class="route-connector">┄┄&gt;</span>'
+                steps_html += '</div>'
+                st.markdown(steps_html, unsafe_allow_html=True)
 
             # Champs STANDBY
             raison_standby = ""
@@ -1342,7 +1399,7 @@ elif PAGE == "📊 Résultats":
             )
             fig_util.update_layout(
                 plot_bgcolor=WHITE, paper_bgcolor=WHITE,
-                font=dict(family="Segoe UI", color=NAVY),
+                font=dict(family="IBM Plex Sans", color=NAVY),
                 height=500, coloraxis_showscale=False,
                 xaxis_tickformat=".0%",
             )
@@ -1541,9 +1598,10 @@ elif PAGE == "🔔 Aléas":
                 t_retour = t_now + duree_sb
 
                 st.markdown(
-                    f'<div style="background:#FFF3CD;border-radius:6px;'
-                    f'padding:8px 12px;border-left:3px solid {ORANGE}">'
-                    f'⚠️ Retour estimé : <b>{h_to_str(t_retour)}</b> &nbsp;|&nbsp; '
+                    f'<div style="background:#FBF1E2;border-radius:4px;'
+                    f'padding:9px 12px;border-left:3px solid {ORANGE};'
+                    f'font-size:0.85rem">'
+                    f'Retour estimé : <b>{h_to_str(t_retour)}</b> &nbsp;|&nbsp; '
                     f'Places restantes : <b>{CAPACITE_STOCK_STANDBY - n_standby - 1}</b>'
                     f'</div>', unsafe_allow_html=True)
 
