@@ -1075,7 +1075,7 @@ if PAGE == "📋 Commandes":
 
             st.markdown(
                 f"**📍 Position actuelle** "
-                f"{'— ' + statut_init if actif else '(non applicable pour EN\\_ATTENTE)'}"
+                f"{'— ' + statut_init if actif else '(non applicable pour EN_ATTENTE)'}"
             )
 
             c1, c2 = st.columns(2)
