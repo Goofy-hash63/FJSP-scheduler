@@ -49,15 +49,41 @@ st.markdown(f"""
 }}
 html, body, [class*="css"] {{
     font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
-    background-color: {LGRAY};
+    background: linear-gradient(135deg, {LGRAY} 0%, #EEF2F7 100%);
     color: #16213E;
+}}
+/* Hero section — hero is thesis: the workshop flow */
+.hero-workshop {{
+    background: linear-gradient(110deg, {NAVY} 0%, #0E3F66 50%, {CYAN} 100%);
+    padding: 32px; border-radius: 8px; margin-bottom: 28px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 12px 32px rgba(11,30,61,0.22);
+}}
+.hero-workshop::before {{
+    content:""; position: absolute; inset: 0;
+    background-image: 
+        radial-gradient(circle at 20% 80%, rgba(0,119,200,0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(30,158,106,0.06) 0%, transparent 50%);
+    pointer-events: none;
+}}
+.hero-workshop-title {{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.3rem; font-weight: 600; color: {WHITE};
+    margin: 0 0 6px; letter-spacing: -0.01em; position: relative; z-index: 1;
+}}
+.hero-workshop-subtitle {{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem; color: rgba(255,255,255,0.65);
+    margin: 0; letter-spacing: 0.05em; position: relative; z-index: 1;
+}}
+.workshop-svg {{
+    width: 100%; height: auto; margin-top: 16px; position: relative; z-index: 1;
 }}
 /* faint blueprint grid — signature texture, evokes engineering drawings */
 [data-testid="stAppViewContainer"] > .main {{
     background-image:
-        linear-gradient(rgba(11,30,61,0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(11,30,61,0.035) 1px, transparent 1px);
-    background-size: 28px 28px;
+        repeating-linear-gradient(0deg, rgba(11,30,61,0.025) 0px, rgba(11,30,61,0.025) 1px, transparent 1px, transparent 26px),
+        repeating-linear-gradient(90deg, rgba(11,30,61,0.025) 0px, rgba(11,30,61,0.025) 1px, transparent 1px, transparent 26px);
 }}
 h1, h2, h3, .aa-header-title, .aa-section {{
     font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
@@ -93,16 +119,23 @@ code, .stCode, [data-testid="stMetricValue"] {{
     letter-spacing:-0.01em; position:relative; }}
 .aa-header-sub {{ font-size:0.85rem; color:rgba(255,255,255,0.68); margin:6px 0 0;
     font-family:'IBM Plex Mono', monospace; position:relative; }}
+/* KPI cards as instrumentation gauges */
 .aa-card {{
     background:{WHITE}; border-radius:8px; padding:18px 22px;
     border:1px solid {MGRAY}; margin-bottom:16px;
     box-shadow:0 1px 3px rgba(11,30,61,0.06);
+    position: relative;
+}}
+.aa-card::before {{
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(circle at top right, rgba(0,119,200,0.03) 0%, transparent 70%);
+    border-radius: 8px; pointer-events: none;
 }}
 .aa-card-title {{ font-size:0.72rem; font-weight:600; color:{DGRAY};
     text-transform:uppercase; letter-spacing:0.09em; margin-bottom:8px;
     font-family:'IBM Plex Mono', monospace; }}
-.aa-card-value {{ font-size:1.9rem; font-weight:600; color:{NAVY};
-    font-family:'Space Grotesk', sans-serif; }}
+.aa-card-value {{ font-size:2.4rem; font-weight:600; color:{NAVY};
+    font-family:'Space Grotesk', sans-serif; line-height: 1; }}
 .aa-card-sub {{ font-size:0.8rem; color:{DGRAY}; margin-top:4px; }}
 .aa-card-accent {{ border-top:3px solid {CYAN}; }}
 .aa-card-ok     {{ border-top:3px solid {GREEN}; }}
@@ -113,23 +146,22 @@ code, .stCode, [data-testid="stMetricValue"] {{
     border-left:3px solid {CYAN}; padding-left:12px; margin:22px 0 14px;
     text-transform:uppercase; letter-spacing:0.04em;
 }}
-/* Route stepper — signature element: panels are routed through machining
-   posts, so the route indicator reads like a real process-flow diagram. */
-.route-flow {{ display:flex; align-items:center; flex-wrap:wrap; margin:6px 0; }}
+/* Route stepper — signature element */
+.route-flow {{ display:flex; align-items:center; flex-wrap:wrap; margin:6px 0; gap: 4px; }}
 .route-step {{
     display:inline-flex; align-items:center; gap:5px;
     padding:4px 10px 4px 8px; font-size:0.74rem; font-weight:600;
     font-family:'IBM Plex Mono', monospace; letter-spacing:0.01em;
-    border-radius:3px; margin:2px 0;
+    border-radius:3px;
 }}
 .route-step::before {{ content:""; width:7px; height:7px; flex:none; }}
 .route-done {{ background:#E9F6F0; color:#147A52; border:1px solid #B9E3CE; }}
 .route-done::before {{ background:{GREEN}; border-radius:50%; }}
-.route-current {{ background:{NAVY}; color:{WHITE}; }}
+.route-current {{ background:{NAVY}; color:{WHITE}; border: 1px solid {CYAN}; }}
 .route-current::before {{ background:{CYAN}; }}
 .route-todo {{ background:{WHITE}; color:{DGRAY}; border:1px dashed {MGRAY}; }}
 .route-todo::before {{ background:{WHITE}; border:1.5px solid {MGRAY}; border-radius:50%; }}
-.route-connector {{ color:{MGRAY}; margin:0 2px; font-family:'IBM Plex Mono', monospace; }}
+.route-connector {{ color:{MGRAY}; margin:0 1px; font-family:'IBM Plex Mono', monospace; font-weight: 500; }}
 .stButton > button[kind="primary"] {{
     background: {NAVY} !important;
     color:{WHITE} !important; border:none !important;
@@ -894,6 +926,87 @@ st.markdown(
     f'</p></div>',
     unsafe_allow_html=True,
 )
+
+# Hero: Workshop diagram — signature element
+svg_workshop = f'''
+<div class="hero-workshop">
+    <p class="hero-workshop-title">📐 Schéma du flux d'atelier</p>
+    <p class="hero-workshop-subtitle">8 postes de travail × 7 familles de panneaux — agent PPO optimise la séquence</p>
+    <svg viewBox="0 0 1200 240" class="workshop-svg" xmlns="http://www.w3.org/2000/svg">
+        <!-- Postes (8 colonnes) -->
+        <g id="posts">
+            <rect x="40" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="100" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P1</text>
+            <text x="100" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Découpe</text>
+            
+            <rect x="180" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="240" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P2</text>
+            <text x="240" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Fraisage</text>
+            
+            <rect x="320" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="380" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P3</text>
+            <text x="380" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Perçage</text>
+            
+            <rect x="460" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="520" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P4</text>
+            <text x="520" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Assemblage</text>
+            
+            <rect x="600" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="660" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P5</text>
+            <text x="660" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Soudage</text>
+            
+            <rect x="740" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="800" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P6</text>
+            <text x="800" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Peinture</text>
+            
+            <rect x="880" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="940" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P7</text>
+            <text x="940" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Inspection</text>
+            
+            <rect x="1020" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
+            <text x="1080" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P8</text>
+            <text x="1080" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Emballage</text>
+        </g>
+        
+        <!-- Connecteurs -->
+        <line x1="160" y1="80" x2="180" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
+        <line x1="300" y1="80" x2="320" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
+        <line x1="440" y1="80" x2="460" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
+        <line x1="580" y1="80" x2="600" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
+        <line x1="720" y1="80" x2="740" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
+        <line x1="860" y1="80" x2="880" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
+        <line x1="1000" y1="80" x2="1020" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
+        
+        <!-- Panel types (7 familles, bas) -->
+        <g id="panels">
+            <circle cx="100" cy="165" r="8" fill="#0077C8"/>
+            <text x="100" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Sup AV</text>
+            
+            <circle cx="200" cy="165" r="8" fill="#0B1E3D"/>
+            <text x="200" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Sup AR</text>
+            
+            <circle cx="300" cy="165" r="8" fill="#C8333B"/>
+            <text x="300" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Inf AV</text>
+            
+            <circle cx="400" cy="165" r="8" fill="#1E9E6A"/>
+            <text x="400" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Ar D</text>
+            
+            <circle cx="500" cy="165" r="8" fill="#D98B2B"/>
+            <text x="500" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Ar G</text>
+            
+            <circle cx="600" cy="165" r="8" fill="#6B4FA0"/>
+            <text x="600" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Av D</text>
+            
+            <circle cx="700" cy="165" r="8" fill="#147A7A"/>
+            <text x="700" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Av G</text>
+        </g>
+        
+        <!-- Legend -->
+        <text x="40" y="220" font-size="9" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.5)">22 machines sur 8 postes × agent RL parcourt 130-D observation space pour routing optimal</text>
+    </svg>
+</div>
+'''
+st.markdown(svg_workshop, unsafe_allow_html=True)
 
 PAGE = st.radio(
     "Navigation",
