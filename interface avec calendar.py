@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, date, timedelta
-import os, io, copy, warnings
+import os, io, copy, warnings, base64
 warnings.filterwarnings("ignore")
 
 from FJSP_data import (
@@ -29,6 +29,21 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Charger l'image Bombardier comme background
+def load_bg_image():
+    """Charge l'image Bombardier comme background CSS (base64)."""
+    try:
+        img_path = os.path.join(os.path.dirname(__file__), "assets", "bombardier_g7500_bg.png")
+        if os.path.exists(img_path):
+            with open(img_path, "rb") as f:
+                img_data = base64.b64encode(f.read()).decode()
+            return f"data:image/png;base64,{img_data}"
+    except Exception as e:
+        st.warning(f"⚠️ Image background non trouvée: {e}")
+    return None
+
+bg_image_b64 = load_bg_image()
+
 NAVY   = "#0B1E3D"   # Ink — primary structural colour, headers & titles
 CYAN   = "#0077C8"   # Aerospace Blue — primary accent / action
 WHITE  = "#FFFFFF"
@@ -49,41 +64,14 @@ st.markdown(f"""
 }}
 html, body, [class*="css"] {{
     font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
-    background: linear-gradient(135deg, {LGRAY} 0%, #EEF2F7 100%);
     color: #16213E;
 }}
-/* Hero section — hero is thesis: the workshop flow */
-.hero-workshop {{
-    background: linear-gradient(110deg, {NAVY} 0%, #0E3F66 50%, {CYAN} 100%);
-    padding: 32px; border-radius: 8px; margin-bottom: 28px;
-    position: relative; overflow: hidden;
-    box-shadow: 0 12px 32px rgba(11,30,61,0.22);
+/* Background blanc pur pour meilleure visibilité */
+[data-testid="stAppViewContainer"] {{
+    background: #FFFFFF;
 }}
-.hero-workshop::before {{
-    content:""; position: absolute; inset: 0;
-    background-image: 
-        radial-gradient(circle at 20% 80%, rgba(0,119,200,0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(30,158,106,0.06) 0%, transparent 50%);
-    pointer-events: none;
-}}
-.hero-workshop-title {{
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.3rem; font-weight: 600; color: {WHITE};
-    margin: 0 0 6px; letter-spacing: -0.01em; position: relative; z-index: 1;
-}}
-.hero-workshop-subtitle {{
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem; color: rgba(255,255,255,0.65);
-    margin: 0; letter-spacing: 0.05em; position: relative; z-index: 1;
-}}
-.workshop-svg {{
-    width: 100%; height: auto; margin-top: 16px; position: relative; z-index: 1;
-}}
-/* faint blueprint grid — signature texture, evokes engineering drawings */
 [data-testid="stAppViewContainer"] > .main {{
-    background-image:
-        repeating-linear-gradient(0deg, rgba(11,30,61,0.025) 0px, rgba(11,30,61,0.025) 1px, transparent 1px, transparent 26px),
-        repeating-linear-gradient(90deg, rgba(11,30,61,0.025) 0px, rgba(11,30,61,0.025) 1px, transparent 1px, transparent 26px);
+    background: #FFFFFF;
 }}
 h1, h2, h3, .aa-header-title, .aa-section {{
     font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
@@ -101,12 +89,20 @@ code, .stCode, [data-testid="stMetricValue"] {{
 [data-testid="stSidebar"] .stTimeInput label {{
     color: rgba(255,255,255,0.55) !important; font-size: 0.78rem;
 }}
+/* Logo Airbus Atlantic */
+.logo-airbus {{
+    text-align: center; padding: 12px 0; margin-bottom: 12px;
+    font-family: 'Space Grotesk', sans-serif;
+}}
+.logo-airbus-title {{ font-size: 0.9rem; font-weight: 600; color: {WHITE}; margin: 0; }}
+.logo-airbus-sub {{ font-size: 0.65rem; color: {CYAN}; letter-spacing: 0.12em; 
+    text-transform: uppercase; margin: 3px 0 0; }}
 .aa-header {{
     position: relative; overflow: hidden;
     background: linear-gradient(120deg, {NAVY} 0%, #102A52 55%, #0E3F66 100%);
-    padding: 22px 32px; border-radius: 6px; margin-bottom: 26px;
+    padding: 24px 32px; border-radius: 6px; margin-bottom: 28px;
     border-left: 4px solid {CYAN};
-    box-shadow: 0 8px 24px rgba(11,30,61,0.18);
+    box-shadow: 0 6px 20px rgba(11,30,61,0.12);
 }}
 .aa-header::after {{
     content:""; position:absolute; inset:0;
@@ -115,15 +111,18 @@ code, .stCode, [data-testid="stMetricValue"] {{
         transparent 1px, transparent 64px);
     pointer-events:none;
 }}
-.aa-header-title {{ font-size:1.55rem; font-weight:600; color:{WHITE}; margin:0;
+.aa-header-title {{ font-size:1.65rem; font-weight:700; color:{WHITE}; margin:0;
     letter-spacing:-0.01em; position:relative; }}
-.aa-header-sub {{ font-size:0.85rem; color:rgba(255,255,255,0.68); margin:6px 0 0;
-    font-family:'IBM Plex Mono', monospace; position:relative; }}
+.aa-header-sub {{ font-size:0.9rem; color:rgba(255,255,255,0.75); margin:8px 0 0;
+    font-family:'IBM Plex Mono', monospace; position:relative; font-weight: 500; }}
+.aa-header-time {{ font-size:1.2rem; font-weight:700; color:{CYAN};
+    font-family:'Space Grotesk', sans-serif; margin-top: 14px; padding-top: 14px;
+    border-top: 2px solid rgba(255,255,255,0.25); }}
 /* KPI cards as instrumentation gauges */
 .aa-card {{
-    background:{WHITE}; border-radius:8px; padding:18px 22px;
-    border:1px solid {MGRAY}; margin-bottom:16px;
-    box-shadow:0 1px 3px rgba(11,30,61,0.06);
+    background:{WHITE}; border-radius:8px; padding:24px 28px;
+    border:1px solid {MGRAY}; margin-bottom:18px;
+    box-shadow: 0 4px 16px rgba(11,30,61,0.12);
     position: relative;
 }}
 .aa-card::before {{
@@ -131,22 +130,22 @@ code, .stCode, [data-testid="stMetricValue"] {{
     background-image: radial-gradient(circle at top right, rgba(0,119,200,0.03) 0%, transparent 70%);
     border-radius: 8px; pointer-events: none;
 }}
-.aa-card-title {{ font-size:0.72rem; font-weight:600; color:{DGRAY};
-    text-transform:uppercase; letter-spacing:0.09em; margin-bottom:8px;
+.aa-card-title {{ font-size:0.75rem; font-weight:700; color:{DGRAY};
+    text-transform:uppercase; letter-spacing:0.12em; margin-bottom:10px;
     font-family:'IBM Plex Mono', monospace; }}
-.aa-card-value {{ font-size:2.4rem; font-weight:600; color:{NAVY};
-    font-family:'Space Grotesk', sans-serif; line-height: 1; }}
-.aa-card-sub {{ font-size:0.8rem; color:{DGRAY}; margin-top:4px; }}
+.aa-card-value {{ font-size:2.8rem; font-weight:700; color:{NAVY};
+    font-family:'Space Grotesk', sans-serif; line-height: 1.1; }}
+.aa-card-sub {{ font-size:0.85rem; color:{DGRAY}; margin-top:6px; font-weight: 500; }}
 .aa-card-accent {{ border-top:3px solid {CYAN}; }}
 .aa-card-ok     {{ border-top:3px solid {GREEN}; }}
 .aa-card-warn   {{ border-top:3px solid {ORANGE}; }}
 .aa-card-danger {{ border-top:3px solid {RED}; }}
 .aa-section {{
-    font-size:0.92rem; font-weight:600; color:{NAVY};
-    border-left:3px solid {CYAN}; padding-left:12px; margin:22px 0 14px;
-    text-transform:uppercase; letter-spacing:0.04em;
+    font-size:0.95rem; font-weight:700; color:{NAVY};
+    border-left:4px solid {CYAN}; padding-left:14px; margin:24px 0 16px;
+    text-transform:uppercase; letter-spacing:0.05em;
 }}
-/* Route stepper — signature element */
+/* Route stepper */
 .route-flow {{ display:flex; align-items:center; flex-wrap:wrap; margin:6px 0; gap: 4px; }}
 .route-step {{
     display:inline-flex; align-items:center; gap:5px;
@@ -173,6 +172,72 @@ code, .stCode, [data-testid="stMetricValue"] {{
     background: {CYAN} !important;
 }}
 hr {{ border-color:{MGRAY} !important; margin:16px 0 !important; }}
+
+/* ====== HEADER TOP avec logo Airbus Atlantic ====== */
+.header-top {{
+    background: linear-gradient(90deg, {NAVY} 0%, #0E3F66 100%);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 4px solid {CYAN};
+    box-shadow: 0 6px 20px rgba(11,30,61,0.25);
+    margin: -16px -16px 28px -16px;
+    width: calc(100% + 32px);
+}}
+.header-logo {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+}}
+.header-logo-text {{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: {WHITE};
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    line-height: 1.3;
+    margin: 0;
+}}
+.header-divider {{
+    width: 1px;
+    height: 32px;
+    background: rgba(255,255,255,0.2);
+    margin: 0 8px;
+}}
+.header-title {{
+    flex: 1;
+    text-align: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: {WHITE};
+    margin: 0;
+    letter-spacing: -0.01em;
+}}
+.header-mode {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+}}
+.header-mode-label {{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.65);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}}
+.header-mode-value {{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    color: {CYAN};
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -913,100 +978,33 @@ def _render_file_production(key_suffix: str = ""):
     st.markdown('</div>', unsafe_allow_html=True)
 
 # =============================================================================
-# 11. HEADER + NAVIGATION
+# 11. HEADER TOP + NAVIGATION
 # =============================================================================
 
-st.markdown(
-    f'<div class="aa-header">'
-    f'<p class="aa-header-title">✈️ Système d\'Ordonnancement FJSP</p>'
-    f'<p class="aa-header-sub">'
-    f'Ligne de fabrication de panneaux — Bombardier &nbsp;|&nbsp; '
-    f'Agent : <strong>{mode}</strong> &nbsp;|&nbsp; '
-    f't = {h_to_str(st.session_state.t_actuel)}'
-    f'</p></div>',
-    unsafe_allow_html=True,
-)
-
-# Hero: Workshop diagram — signature element
-svg_workshop = f'''
-<div class="hero-workshop">
-    <p class="hero-workshop-title">📐 Schéma du flux d'atelier</p>
-    <p class="hero-workshop-subtitle">8 postes de travail × 7 familles de panneaux — agent PPO optimise la séquence</p>
-    <svg viewBox="0 0 1200 240" class="workshop-svg" xmlns="http://www.w3.org/2000/svg">
-        <!-- Postes (8 colonnes) -->
-        <g id="posts">
-            <rect x="40" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="100" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P1</text>
-            <text x="100" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Découpe</text>
-            
-            <rect x="180" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="240" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P2</text>
-            <text x="240" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Fraisage</text>
-            
-            <rect x="320" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="380" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P3</text>
-            <text x="380" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Perçage</text>
-            
-            <rect x="460" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="520" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P4</text>
-            <text x="520" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Assemblage</text>
-            
-            <rect x="600" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="660" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P5</text>
-            <text x="660" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Soudage</text>
-            
-            <rect x="740" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="800" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P6</text>
-            <text x="800" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Peinture</text>
-            
-            <rect x="880" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="940" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P7</text>
-            <text x="940" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Inspection</text>
-            
-            <rect x="1020" y="40" width="120" height="80" fill="rgba(255,255,255,0.12)" stroke="{CYAN}" stroke-width="2" rx="4"/>
-            <text x="1080" y="65" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" font-weight="600" fill="{WHITE}">P8</text>
-            <text x="1080" y="85" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.7)">Emballage</text>
-        </g>
-        
-        <!-- Connecteurs -->
-        <line x1="160" y1="80" x2="180" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
-        <line x1="300" y1="80" x2="320" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
-        <line x1="440" y1="80" x2="460" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
-        <line x1="580" y1="80" x2="600" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
-        <line x1="720" y1="80" x2="740" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
-        <line x1="860" y1="80" x2="880" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
-        <line x1="1000" y1="80" x2="1020" y2="80" stroke="rgba(0,119,200,0.4)" stroke-width="2" stroke-dasharray="4,4"/>
-        
-        <!-- Panel types (7 familles, bas) -->
-        <g id="panels">
-            <circle cx="100" cy="165" r="8" fill="#0077C8"/>
-            <text x="100" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Sup AV</text>
-            
-            <circle cx="200" cy="165" r="8" fill="#0B1E3D"/>
-            <text x="200" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Sup AR</text>
-            
-            <circle cx="300" cy="165" r="8" fill="#C8333B"/>
-            <text x="300" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Inf AV</text>
-            
-            <circle cx="400" cy="165" r="8" fill="#1E9E6A"/>
-            <text x="400" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Ar D</text>
-            
-            <circle cx="500" cy="165" r="8" fill="#D98B2B"/>
-            <text x="500" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Ar G</text>
-            
-            <circle cx="600" cy="165" r="8" fill="#6B4FA0"/>
-            <text x="600" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Av D</text>
-            
-            <circle cx="700" cy="165" r="8" fill="#147A7A"/>
-            <text x="700" y="185" text-anchor="middle" font-size="9" font-family="IBM Plex Mono" fill="{DGRAY}">Av G</text>
-        </g>
-        
-        <!-- Legend -->
-        <text x="40" y="220" font-size="9" font-family="IBM Plex Mono" fill="rgba(255,255,255,0.5)">22 machines sur 8 postes × agent RL parcourt 130-D observation space pour routing optimal</text>
-    </svg>
+st.markdown(f"""
+<div class="header-top">
+    <div class="header-logo">
+        <div>
+            <p class="header-logo-text">✈️ Airbus<br>Atlantic</p>
+        </div>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-title">FJSP Scheduler — Bombardier Global 7500</div>
+    <div class="header-divider"></div>
+    <div class="header-mode">
+        <span class="header-mode-label">Agent</span>
+        <span class="header-mode-value">{mode}</span>
+    </div>
 </div>
-'''
-st.markdown(svg_workshop, unsafe_allow_html=True)
+<div class="aa-header">
+    <p class="aa-header-sub" style="margin: 0; text-align: center;">
+        Ligne de fabrication de panneaux — Bombardier 
+    </p>
+    <p class="aa-header-time" style="margin: 8px 0 0; text-align: center;">
+        ⏱️ Heure actuelle : <strong>{h_to_str(st.session_state.t_actuel)}</strong>
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 PAGE = st.radio(
     "Navigation",
@@ -1075,7 +1073,7 @@ if PAGE == "📋 Commandes":
 
             st.markdown(
                 f"**📍 Position actuelle** "
-                f"{'— ' + statut_init if actif else '(non applicable pour EN_ATTENTE)'}"
+                f"{'— ' + statut_init if actif else '(non applicable pour EN\\_ATTENTE)'}"
             )
 
             c1, c2 = st.columns(2)
