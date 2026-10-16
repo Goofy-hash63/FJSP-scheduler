@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, date, timedelta
-import os, io, copy, warnings, base64
+from datetime import datetime, date, time as dtime, timedelta
+import os, io, copy, re, warnings
 warnings.filterwarnings("ignore")
 
 from FJSP_data import (
@@ -18,6 +18,7 @@ from FJSP_env import (
     FJSPEnv, N_MACHINES, ALL_MACHINES, FENETRE_ACTIVE,
     CAPACITE_STOCK_STANDBY, HORIZON,
 )
+
 # =============================================================================
 # 0. CONFIG PAGE
 # =============================================================================
@@ -29,215 +30,73 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Charger l'image Bombardier comme background
-def load_bg_image():
-    """Charge l'image Bombardier comme background CSS (base64)."""
-    try:
-        img_path = os.path.join(os.path.dirname(__file__), "assets", "bombardier_g7500_bg.png")
-        if os.path.exists(img_path):
-            with open(img_path, "rb") as f:
-                img_data = base64.b64encode(f.read()).decode()
-            return f"data:image/png;base64,{img_data}"
-    except Exception as e:
-        st.warning(f"⚠️ Image background non trouvée: {e}")
-    return None
-
-bg_image_b64 = load_bg_image()
-
-NAVY   = "#0B1E3D"   # Ink — primary structural colour, headers & titles
-CYAN   = "#0077C8"   # Aerospace Blue — primary accent / action
+NAVY   = "#00205B"
+CYAN   = "#009FDF"
 WHITE  = "#FFFFFF"
-LGRAY  = "#F3F5F8"   # Cloud — page background
-MGRAY  = "#DBE1EA"   # Hairline — borders & dividers
-DGRAY  = "#5B6B82"   # Slate — secondary text
-RED    = "#C8333B"   # Stop — critical / late
-GREEN  = "#1E9E6A"   # Go — on-time / nominal
-ORANGE = "#D98B2B"   # Signal Amber — caution
+LGRAY  = "#F4F6F9"
+MGRAY  = "#D0D7E2"
+DGRAY  = "#6B7A99"
+RED    = "#E63946"
+GREEN  = "#2DC653"
+ORANGE = "#F4A020"  
 
 st.markdown(f"""
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {{
-    --ink: {NAVY}; --blue: {CYAN}; --cloud: {LGRAY}; --hairline: {MGRAY};
-    --slate: {DGRAY}; --stop: {RED}; --go: {GREEN}; --amber: {ORANGE};
-}}
 html, body, [class*="css"] {{
-    font-family: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
-    color: #16213E;
-}}
-/* Background blanc pur pour meilleure visibilité */
-[data-testid="stAppViewContainer"] {{
-    background: #FFFFFF;
-}}
-[data-testid="stAppViewContainer"] > .main {{
-    background: #FFFFFF;
-}}
-h1, h2, h3, .aa-header-title, .aa-section {{
-    font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
-}}
-code, .stCode, [data-testid="stMetricValue"] {{
-    font-family: 'IBM Plex Mono', monospace !important;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background-color: {LGRAY};
+    color: #1A1A2E;
 }}
 [data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, {NAVY} 0%, #050F22 100%);
-    border-right: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, {NAVY} 0%, #001845 100%);
+    border-right: 3px solid {CYAN};
 }}
-[data-testid="stSidebar"] * {{ color: {WHITE} !important; font-family:'IBM Plex Sans', sans-serif; }}
+[data-testid="stSidebar"] * {{ color: {WHITE} !important; }}
 [data-testid="stSidebar"] .stSelectbox label,
 [data-testid="stSidebar"] .stDateInput label,
 [data-testid="stSidebar"] .stTimeInput label {{
-    color: rgba(255,255,255,0.55) !important; font-size: 0.78rem;
+    color: {MGRAY} !important; font-size: 0.82rem;
 }}
-/* Logo Airbus Atlantic */
-.logo-airbus {{
-    text-align: center; padding: 12px 0; margin-bottom: 12px;
-    font-family: 'Space Grotesk', sans-serif;
-}}
-.logo-airbus-title {{ font-size: 0.9rem; font-weight: 600; color: {WHITE}; margin: 0; }}
-.logo-airbus-sub {{ font-size: 0.65rem; color: {CYAN}; letter-spacing: 0.12em; 
-    text-transform: uppercase; margin: 3px 0 0; }}
 .aa-header {{
-    position: relative; overflow: hidden;
-    background: linear-gradient(120deg, {NAVY} 0%, #102A52 55%, #0E3F66 100%);
-    padding: 24px 32px; border-radius: 6px; margin-bottom: 28px;
-    border-left: 4px solid {CYAN};
-    box-shadow: 0 6px 20px rgba(11,30,61,0.12);
+    background: linear-gradient(135deg, {NAVY} 0%, #00318A 60%, {CYAN} 100%);
+    padding: 18px 32px; border-radius: 12px; margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(0,32,91,0.25);
 }}
-.aa-header::after {{
-    content:""; position:absolute; inset:0;
-    background-image: repeating-linear-gradient(
-        90deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px,
-        transparent 1px, transparent 64px);
-    pointer-events:none;
-}}
-.aa-header-title {{ font-size:1.65rem; font-weight:700; color:{WHITE}; margin:0;
-    letter-spacing:-0.01em; position:relative; }}
-.aa-header-sub {{ font-size:0.9rem; color:rgba(255,255,255,0.75); margin:8px 0 0;
-    font-family:'IBM Plex Mono', monospace; position:relative; font-weight: 500; }}
-.aa-header-time {{ font-size:1.2rem; font-weight:700; color:{CYAN};
-    font-family:'Space Grotesk', sans-serif; margin-top: 14px; padding-top: 14px;
-    border-top: 2px solid rgba(255,255,255,0.25); }}
-/* KPI cards as instrumentation gauges */
+.aa-header-title {{ font-size:1.7rem; font-weight:700; color:{WHITE}; margin:0; }}
+.aa-header-sub {{ font-size:0.9rem; color:rgba(255,255,255,0.75); margin:4px 0 0; }}
 .aa-card {{
-    background:{WHITE}; border-radius:8px; padding:24px 28px;
-    border:1px solid {MGRAY}; margin-bottom:18px;
-    box-shadow: 0 4px 16px rgba(11,30,61,0.12);
-    position: relative;
+    background:{WHITE}; border-radius:10px; padding:20px 24px;
+    border:1px solid {MGRAY}; margin-bottom:16px;
+    box-shadow:0 2px 8px rgba(0,32,91,0.07);
 }}
-.aa-card::before {{
-    content: ""; position: absolute; inset: 0;
-    background-image: radial-gradient(circle at top right, rgba(0,119,200,0.03) 0%, transparent 70%);
-    border-radius: 8px; pointer-events: none;
-}}
-.aa-card-title {{ font-size:0.75rem; font-weight:700; color:{DGRAY};
-    text-transform:uppercase; letter-spacing:0.12em; margin-bottom:10px;
-    font-family:'IBM Plex Mono', monospace; }}
-.aa-card-value {{ font-size:2.8rem; font-weight:700; color:{NAVY};
-    font-family:'Space Grotesk', sans-serif; line-height: 1.1; }}
-.aa-card-sub {{ font-size:0.85rem; color:{DGRAY}; margin-top:6px; font-weight: 500; }}
+.aa-card-title {{ font-size:0.78rem; font-weight:600; color:{DGRAY};
+    text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; }}
+.aa-card-value {{ font-size:2rem; font-weight:700; color:{NAVY}; }}
+.aa-card-sub {{ font-size:0.82rem; color:{DGRAY}; margin-top:4px; }}
 .aa-card-accent {{ border-top:3px solid {CYAN}; }}
 .aa-card-ok     {{ border-top:3px solid {GREEN}; }}
 .aa-card-warn   {{ border-top:3px solid {ORANGE}; }}
 .aa-card-danger {{ border-top:3px solid {RED}; }}
 .aa-section {{
-    font-size:0.95rem; font-weight:700; color:{NAVY};
-    border-left:4px solid {CYAN}; padding-left:14px; margin:24px 0 16px;
-    text-transform:uppercase; letter-spacing:0.05em;
+    font-size:1.1rem; font-weight:700; color:{NAVY};
+    border-left:4px solid {CYAN}; padding-left:12px; margin:20px 0 12px;
 }}
-/* Route stepper */
-.route-flow {{ display:flex; align-items:center; flex-wrap:wrap; margin:6px 0; gap: 4px; }}
 .route-step {{
-    display:inline-flex; align-items:center; gap:5px;
-    padding:4px 10px 4px 8px; font-size:0.74rem; font-weight:600;
-    font-family:'IBM Plex Mono', monospace; letter-spacing:0.01em;
-    border-radius:3px;
+    display:inline-block; padding:3px 10px; border-radius:12px;
+    font-size:0.78rem; font-weight:600; margin:2px;
 }}
-.route-step::before {{ content:""; width:7px; height:7px; flex:none; }}
-.route-done {{ background:#E9F6F0; color:#147A52; border:1px solid #B9E3CE; }}
-.route-done::before {{ background:{GREEN}; border-radius:50%; }}
-.route-current {{ background:{NAVY}; color:{WHITE}; border: 1px solid {CYAN}; }}
-.route-current::before {{ background:{CYAN}; }}
-.route-todo {{ background:{WHITE}; color:{DGRAY}; border:1px dashed {MGRAY}; }}
-.route-todo::before {{ background:{WHITE}; border:1.5px solid {MGRAY}; border-radius:50%; }}
-.route-connector {{ color:{MGRAY}; margin:0 1px; font-family:'IBM Plex Mono', monospace; font-weight: 500; }}
+.route-done    {{ background:#d4edda; color:#155724; }}
+.route-current {{ background:{CYAN}; color:{WHITE}; }}
+.route-todo    {{ background:{LGRAY}; color:{DGRAY}; border:1px solid {MGRAY}; }}
 .stButton > button[kind="primary"] {{
-    background: {NAVY} !important;
+    background: linear-gradient(90deg, {NAVY}, #00318A) !important;
     color:{WHITE} !important; border:none !important;
-    border-radius:5px !important; font-weight:600 !important;
-    font-family:'IBM Plex Sans', sans-serif !important;
-    letter-spacing:0.01em;
+    border-radius:8px !important; font-weight:600 !important;
 }}
 .stButton > button[kind="primary"]:hover {{
-    background: {CYAN} !important;
+    background: linear-gradient(90deg, {CYAN}, #0077B6) !important;
 }}
 hr {{ border-color:{MGRAY} !important; margin:16px 0 !important; }}
-
-/* ====== HEADER TOP avec logo Airbus Atlantic ====== */
-.header-top {{
-    background: linear-gradient(90deg, {NAVY} 0%, #0E3F66 100%);
-    padding: 16px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 4px solid {CYAN};
-    box-shadow: 0 6px 20px rgba(11,30,61,0.25);
-    margin: -16px -16px 28px -16px;
-    width: calc(100% + 32px);
-}}
-.header-logo {{
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 0 0 auto;
-}}
-.header-logo-text {{
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 800;
-    color: {WHITE};
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    line-height: 1.3;
-    margin: 0;
-}}
-.header-divider {{
-    width: 1px;
-    height: 32px;
-    background: rgba(255,255,255,0.2);
-    margin: 0 8px;
-}}
-.header-title {{
-    flex: 1;
-    text-align: center;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: {WHITE};
-    margin: 0;
-    letter-spacing: -0.01em;
-}}
-.header-mode {{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 0 0 auto;
-}}
-.header-mode-label {{
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.65rem;
-    color: rgba(255,255,255,0.65);
-    text-transform: uppercase;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-}}
-.header-mode-value {{
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.9rem;
-    color: {CYAN};
-    font-weight: 800;
-    letter-spacing: 0.08em;
-}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -245,81 +104,112 @@ hr {{ border-color:{MGRAY} !important; margin:16px 0 !important; }}
 # 1. CONSTANTES
 # =============================================================================
 
-MODEL_PATH  = "best_model.zip"
+MODEL_PATH  = "./checkpoints/best_model.zip"
 T_REFERENCE = datetime(2026, 1, 1, 0, 0)
 
 COULEURS_TYPE = {
-    "Sup AV": "#0077C8", "Sup AR": "#0B1E3D",
-    "Inf AV": "#C8333B", "Ar D":   "#1E9E6A",
-    "Ar G":   "#D98B2B", "Av D":   "#6B4FA0", "Av G": "#147A7A",
+    "Sup AV": "#009FDF", "Sup AR": "#00205B",
+    "Inf AV": "#E63946", "Ar D":   "#2DC653",
+    "Ar G":   "#F4A020", "Av D":   "#7B2FBE", "Av G": "#006D77",
 }
 
 # =============================================================================
-# 2. UTILITAIRES TEMPS — temps linéaire
+# 2. UTILITAIRES TEMPS — calendrier ouvré (lun–ven, 6h–22h)
 # =============================================================================
+# Le simulateur et l'agent PPO travaillent en HEURES TRAVAILLÉES cumulées :
+# les nuits (22h→6h) et les week-ends n'existent pas dans leur axe de temps.
+# Tout le calendrier est géré ici, à la frontière (conversion date <-> heures).
+# => aucun réentraînement : le modèle ne voit que des heures.
 
-def h_to_dt(h: float) -> datetime:
-    return T_REFERENCE + timedelta(hours=float(h))
+SHIFT_START  = 6    # début de la journée de travail
+SHIFT_HEURES = 16   # 6h -> 22h
 
 def dt_to_h(dt: datetime) -> float:
-    return max(0.0, (dt - T_REFERENCE).total_seconds() / 3600)
+    """datetime réel -> heures travaillées cumulées depuis T_REFERENCE.
+    Hors horaires : avant 6h -> 6h ; après 22h -> 22h ; samedi/dimanche -> fin de vendredi."""
+    d = dt.date()
+    n = int(np.busday_count(T_REFERENCE.date(), d))        # jours ouvrés complets avant d
+    if np.is_busday(d):
+        h_loc = (dt - datetime.combine(d, dtime.min)).total_seconds() / 3600
+        h = n * SHIFT_HEURES + min(max(h_loc - SHIFT_START, 0.0), SHIFT_HEURES)
+    else:
+        h = n * SHIFT_HEURES
+    return max(0.0, h)
 
-def h_to_str(h: float) -> str:
-    return h_to_dt(h).strftime("%d/%m/%Y %H:%M")
+def h_to_dt(h: float, fin: bool = False) -> datetime:
+    """heures travaillées cumulées -> datetime réel (saute nuits et week-ends).
+    fin=True : une borne exactement en fin de journée s'affiche à 22:00
+    (et non le lendemain 06:00) — à utiliser pour les fins et les servitudes."""
+    h = round(float(h), 6)
+    n, reste = divmod(h, SHIFT_HEURES)
+    if fin and reste < 1e-9 and n > 0:
+        n, reste = n - 1, float(SHIFT_HEURES)
+    d = np.busday_offset(T_REFERENCE.date(), int(n), roll="forward").astype(object)
+    return datetime.combine(d, dtime.min) + timedelta(hours=SHIFT_START + reste)
 
-# --- Shifts 14h/jour (ex : 6h→20h) -----------------------------------------
-SHIFT_START = 6   # heure de début shift (heure locale)
-SHIFT_HEURES = 14  # heures effectives par jour
+def h_to_str(h: float, fin: bool = False) -> str:
+    return h_to_dt(h, fin=fin).strftime("%d/%m/%Y %H:%M")
 
-def h_shift_to_dt(h_lineaire: float) -> datetime:
-    """Convertit des heures cumulées linéaires en datetime réel avec shifts 14h/jour.
+def h_to_str_fin(h: float) -> str:
+    return h_to_str(h, fin=True)
 
-    Ex : h=15 → jour 2, heure 6h + (15-14)h = 7h  (car jour 1 = 14h de 6h à 20h)
-    Une opération qui chevauche la fin du shift est interrompue et reprend le lendemain.
-    """
-    h = float(h_lineaire)
-    jours_complets = int(h // SHIFT_HEURES)
-    h_restantes    = h % SHIFT_HEURES
-    dt_debut_shift = (T_REFERENCE.replace(hour=SHIFT_START, minute=0, second=0)
-                      + timedelta(days=jours_complets))
-    return dt_debut_shift + timedelta(hours=h_restantes)
+_LUNDI_REF = T_REFERENCE.date() - timedelta(days=T_REFERENCE.weekday())
 
-def _split_op_shifts(debut_h: float, fin_h: float):
-    """Découpe un intervalle [debut_h, fin_h] (heures linéaires) en segments
-    correspondant aux plages de shift réelles.  Retourne une liste de
-    (debut_dt, fin_dt) pour chaque segment (jamais plus long qu'un shift).
-    """
-    segments = []
-    t = debut_h
-    while t < fin_h - 1e-6:
-        # Fin du shift courant en heures linéaires
-        fin_shift = (int(t // SHIFT_HEURES) + 1) * SHIFT_HEURES
-        t_end = min(fin_h, fin_shift)
-        segments.append((h_shift_to_dt(t), h_shift_to_dt(t_end)))
-        t = fin_shift  # début du prochain shift = même que fin shift courant
-    return segments
+def _idx_semaine(d: date) -> int:
+    """Indice de semaine (0 = semaine de T_REFERENCE) — une semaine = du lundi au dimanche."""
+    return ((d - timedelta(days=d.weekday())) - _LUNDI_REF).days // 7
+
+def split_op_semaine(debut_h: float, fin_h: float):
+    """Segments (h_début, h_fin, idx_semaine) d'une opération. Sur l'axe du Gantt les nuits
+    n'existent pas : une opération n'est donc coupée qu'au passage d'un week-end."""
+    segs, t = [], float(debut_h)
+    while t < fin_h - 1e-9:
+        t_end = min(fin_h, (int(t // SHIFT_HEURES) + 1) * SHIFT_HEURES)
+        w = _idx_semaine(h_to_dt(t).date())
+        if segs and segs[-1][2] == w:
+            segs[-1] = (segs[-1][0], t_end, w)
+        else:
+            segs.append((t, t_end, w))
+        t = t_end
+    return segs
+
+def split_op_ouvre(debut_h: float, fin_h: float):
+    """Découpe [debut_h, fin_h] (heures travaillées) en segments calendaires :
+    une opération est coupée à chaque fin de journée (22h) et à chaque week-end."""
+    segs, t = [], float(debut_h)
+    while t < fin_h - 1e-9:
+        t_end = min(fin_h, (int(t // SHIFT_HEURES) + 1) * SHIFT_HEURES)
+        a = h_to_dt(t)
+        b = a + timedelta(hours=t_end - t)
+        if segs and abs((segs[-1][1] - a).total_seconds()) < 1:
+            segs[-1] = (segs[-1][0], b)
+        else:
+            segs.append((a, b))
+        t = t_end
+    return segs
 
 # =============================================================================
 # 3. ROUTE VISUELLE — [I4]
 # =============================================================================
 
 def _render_route_html(panneau: Panneau) -> str:
-    """Génère la gamme sous forme de stepper process-flow
-    (fait / en cours / à faire) — diagramme inspiré des plans de gamme."""
+    """Génère le HTML de la route avec cases cochées (fait / en cours / à faire)."""
     route  = panneau.route
     op_cur = panneau.op_courante
-    html   = '<div class="route-flow">'
+    html   = ""
     for i, poste in enumerate(route):
         if i < op_cur:
-            css = "route-done"
+            css  = "route-done"
+            icon = "✅ "
         elif i == op_cur:
-            css = "route-current"
+            css  = "route-current"
+            icon = "⚙️ "
         else:
-            css = "route-todo"
-        html += f'<span class="route-step {css}">{poste}</span>'
+            css  = "route-todo"
+            icon = ""
+        html += f'<span class="route-step {css}">{icon}{poste}</span>'
         if i < len(route) - 1:
-            html += '<span class="route-connector">┄┄&gt;</span>'
-    html += '</div>'
+            html += ' <span style="color:#aaa">→</span> '
     return html
 
 # =============================================================================
@@ -385,306 +275,351 @@ def ordonnancer(panneaux, t_actuel, modele=None, mode="EDD"):
     return df, metriques, env
 
 # =============================================================================
+# 5b. UNITÉS (OF) — une unité = 7 panneaux (un de chaque type)
+# =============================================================================
+
+def cle_unite(of_id: str, panel_type: str = None) -> str:
+    """Numéro d'OF affiché : 'OF-001-SupAV' -> 'OF-001'.
+    Les panneaux d'un même OF partagent le préfixe ; le suffixe -<type> est retiré."""
+    s = str(of_id).strip()
+    if panel_type:
+        suf = "-" + str(panel_type).replace(" ", "")
+        if s.lower().endswith(suf.lower()):
+            return s[: -len(suf)]
+    m = re.match(r"^(OF-\d+)", s)
+    return m.group(1) if m else s
+
+def analyser_unites(df, panneaux) -> list:
+    """Regroupe les panneaux par unité et calcule l'état de chaque unité d'après le planning.
+    prete = OF terminé : tous ses panneaux sont terminés dans le planning."""
+    if df is not None and not df.empty:
+        fin_pan = df.groupby("MGH")["fin"].max().to_dict()
+        deb_pan = df.groupby("MGH")["debut"].min().to_dict()
+    else:
+        fin_pan, deb_pan = {}, {}
+    groupes = {}
+    for p in panneaux:
+        groupes.setdefault(cle_unite(p.of_id, p.panel_type), []).append(p)
+    unites = []
+    for cle, pans in groupes.items():
+        fins     = {p.mgh_id: fin_pan.get(p.mgh_id) for p in pans}
+        faits    = [f for f in fins.values() if f is not None]
+        n        = len(pans)
+        complete = (n == len(PANEL_TYPES)
+                    and {p.panel_type for p in pans} == set(PANEL_TYPES))
+        fin_h    = max(faits) if faits else None
+        due_h    = max(p.due_date for p in pans)
+        debuts   = [deb_pan[p.mgh_id] for p in pans if p.mgh_id in deb_pan]
+        dernier  = max((p for p in pans if fins[p.mgh_id] is not None),
+                       key=lambda p: fins[p.mgh_id], default=None)
+        unites.append({
+            "of": cle, "panneaux": pans, "n": n, "n_fini": len(faits),
+            "complete": complete, "prete": n > 0 and len(faits) == n,
+            "fin_h": fin_h, "due_h": due_h,
+            "debut_h": min(debuts) if debuts else None,
+            "ecart_h": (due_h - fin_h) if fin_h is not None else None,   # >0 = avance
+            "dernier": dernier,
+        })
+    unites.sort(key=lambda u: (not u["prete"],
+                               u["fin_h"] if u["fin_h"] is not None else 1e18, u["of"]))
+    return unites
+
+def _txt_ecart(ecart_h: float) -> str:
+    j = abs(ecart_h) / SHIFT_HEURES
+    if ecart_h >= 0:
+        return f"avance {ecart_h:.0f} h ouvrées (≈ {j:.1f} j)"
+    return f"RETARD {abs(ecart_h):.0f} h ouvrées (≈ {j:.1f} j)"
+
+# =============================================================================
 # 6. GANTT
 # =============================================================================
 
-def _get_unite_stars(df: pd.DataFrame, panneaux: list, mode_axe: str):
-    """Calcule les annotations étoiles ⭐ à placer dans le Gantt.
-
-    Une étoile est placée sur la machine du dernier panneau terminé de chaque
-    groupe de 7 (une unité = 7 types).  La position X correspond à la fin
-    maximale du groupe, la position Y à la machine correspondante.
-
-    Retourne une liste de dicts {x, y, label, mode} prêts à injecter via
-    fig.add_annotation().
-    """
-    if df is None or df.empty or not panneaux:
-        return []
-
-    # Identifier l'OF de base de chaque panneau pour regrouper par unité.
-    # Convention : on regroupe par séquence d'entrée (ordre d'ajout),
-    # lots de 7 panneaux consécutifs.
-    mgh_ids = [p.mgh_id for p in panneaux]
-    stars = []
-
-    for lot_start in range(0, len(mgh_ids), 7):
-        lot = mgh_ids[lot_start: lot_start + 7]
-        if len(lot) < 7:
-            break  # lot incomplet → pas d'étoile
-
-        df_lot = df[df["MGH"].isin(lot)]
-        if df_lot.empty:
-            continue
-
-        fin_max = df_lot["fin"].max()
-        row_max = df_lot[df_lot["fin"] == fin_max].iloc[0]
-        machine = row_max["machine"]
-        n_unite = lot_start // 7 + 1
-
-        if mode_axe == "datetime":
-            x_val = h_to_dt(fin_max)
-        elif mode_axe == "shifts":
-            x_val = h_shift_to_dt(fin_max)
-        else:  # heures
-            x_val = fin_max
-
-        stars.append({
-            "x"    : x_val,
-            "y"    : machine,
-            "label": f"⭐ U{n_unite}",
-            "mode" : mode_axe,
-        })
-
-    return stars
-
-
-def _add_unite_stars(fig: go.Figure, stars: list):
-    """Injecte les annotations étoile dans une figure Plotly."""
-    for s in stars:
-        fig.add_annotation(
-            x=s["x"], y=s["y"],
-            text=s["label"],
-            showarrow=True,
-            arrowhead=2, arrowsize=1, arrowwidth=1.5,
-            arrowcolor="#C9A646",
-            font=dict(size=14, color="#C9A646"),
-            bgcolor="rgba(0,0,0,0.55)",
-            bordercolor="#C9A646",
-            borderwidth=1,
-            borderpad=3,
-            ax=0, ay=-30,
-            xanchor="center",
-            yanchor="bottom",
-        )
-
+JOURS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven"]
+ROW_PX   = 28                       # hauteur d'une ligne machine (px)
 
 def creer_gantt(df: pd.DataFrame, panneaux: list,
-                mode_axe: str = "datetime") -> go.Figure:
+                mode_axe: str = "datetime", largeur_we_jours: float = 1.0) -> go.Figure:
     if df is None or df.empty:
         return go.Figure()
-
-    df = df.copy()
-
-    # ------------------------------------------------------------------ SHIFTS
-    if mode_axe == "shifts":
-        fig = go.Figure()
-        machines_ordre = list(reversed(ALL_MACHINES))
-        m_to_y = {m: i for i, m in enumerate(machines_ordre)}
-        t_now = st.session_state.get("t_actuel", 0.0)
-
-        for _, row in df.iterrows():
-            y_pos   = m_to_y.get(row["machine"], 0)
-            couleur = COULEURS_TYPE.get(row["type_panneau"], "#888")
-            segments = _split_op_shifts(row["debut"], row["fin"])
-
-            for seg_idx, (seg_start_dt, seg_end_dt) in enumerate(segments):
-                opacity = 0.4 if row["interrompu"] else 0.85
-                # Barre du segment
-                fig.add_trace(go.Bar(
-                    x=[(seg_end_dt - seg_start_dt).total_seconds() / 3600],
-                    y=[row["machine"]],
-                    base=[seg_start_dt.isoformat()],
-                    orientation="h",
-                    marker_color=couleur,
-                    opacity=opacity,
-                    width=0.7,
-                    showlegend=(seg_idx == 0 and
-                                row["type_panneau"] not in
-                                [t.name for t in fig.data if hasattr(t, "name")]),
-                    name=row["type_panneau"],
-                    legendgroup=row["type_panneau"],
-                    hovertemplate=(
-                        f"<b>{row['MGH']}</b><br>"
-                        f"Poste : {row['poste']}<br>"
-                        f"Machine : {row['machine']}<br>"
-                        f"Début : {seg_start_dt.strftime('%d/%m %H:%M')}<br>"
-                        f"Fin : {seg_end_dt.strftime('%d/%m %H:%M')}<br>"
-                        + ("⚠️ Interrompu<br>" if row["interrompu"] else "")
-                        + "<extra></extra>"
-                    ),
-                ))
-                # Étiquette MGH sur le plus grand segment
-                dur_h = (seg_end_dt - seg_start_dt).total_seconds() / 3600
-                if dur_h > 3:
-                    mid_dt = seg_start_dt + (seg_end_dt - seg_start_dt) / 2
-                    fig.add_annotation(
-                        x=mid_dt, y=row["machine"],
-                        text=row["MGH"], showarrow=False,
-                        font=dict(size=8, color="white"),
-                        xanchor="center", yanchor="middle")
-
-                # Hachures visuelles pour indiquer la coupure de shift
-                if len(segments) > 1 and seg_idx < len(segments) - 1:
-                    fig.add_annotation(
-                        x=seg_end_dt, y=row["machine"],
-                        text="✂️", showarrow=False,
-                        font=dict(size=10), yanchor="middle",
-                        xanchor="center")
-
-        # Ligne Maintenant
-        if t_now > 0:
-            x_now = h_shift_to_dt(t_now)
-            fig.add_shape(type="line", x0=x_now, x1=x_now, y0=0, y1=1,
-                          xref="x", yref="paper",
-                          line=dict(color="#D98B2B", width=2.5))
-            fig.add_annotation(x=x_now, y=1.04, xref="x", yref="paper",
-                               text="▼ Maintenant", showarrow=False,
-                               font=dict(size=10, color="#D98B2B"), xanchor="center")
-
-        # Due dates
-        vues = set()
-        for p in panneaux:
-            if p.due_date not in vues:
-                vues.add(p.due_date)
-                x_dt = h_shift_to_dt(p.due_date)
-                fig.add_shape(type="line", x0=x_dt, x1=x_dt, y0=0, y1=1,
-                              xref="x", yref="paper",
-                              line=dict(color=RED, width=1.5, dash="dot"), opacity=0.85)
-                fig.add_annotation(x=x_dt, y=1.02, xref="x", yref="paper",
-                                   text=f"↓ {p.mgh_id}", showarrow=False,
-                                   font=dict(size=9, color=RED), xanchor="left")
-
-        # Zones hors-shift (grisées) — un rectangle par jour visible
-        if not df.empty:
-            max_h = float(df["fin"].max())
-            n_jours = int(max_h // SHIFT_HEURES) + 2
-            for j in range(n_jours):
-                fin_shift_dt  = (T_REFERENCE.replace(hour=SHIFT_START + SHIFT_HEURES,
-                                  minute=0, second=0) + timedelta(days=j))
-                deb_shift_dt  = (T_REFERENCE.replace(hour=SHIFT_START, minute=0, second=0)
-                                  + timedelta(days=j + 1))
-                fig.add_vrect(x0=fin_shift_dt, x1=deb_shift_dt,
-                              fillcolor=MGRAY, opacity=0.18,
-                              layer="below", line_width=0)
-
-        fig.update_yaxes(
-            categoryorder="array",
-            categoryarray=list(reversed(ALL_MACHINES)),
-            title="Bâti / Machine",
-            tickfont=dict(size=11, color=NAVY),
-        )
-        x_axis = dict(
-            type="date",
-            showgrid=True, gridcolor=MGRAY,
-            title=f"Calendrier réel (shift {SHIFT_START}h–{SHIFT_START+SHIFT_HEURES}h "
-                  f"= {SHIFT_HEURES}h/jour)",
-            tickformat="%d/%m\n%H:%M",
-        )
-        fig.update_layout(
-            barmode="overlay",
-            height=max(550, len(ALL_MACHINES) * 26),
-            plot_bgcolor=WHITE, paper_bgcolor=WHITE,
-            font=dict(family="IBM Plex Sans, Arial", size=12, color=NAVY),
-            xaxis=x_axis,
-            legend=dict(title=dict(text="Type panneau"),
-                        bgcolor="rgba(255,255,255,0.9)",
-                        bordercolor=MGRAY, borderwidth=1),
-            margin=dict(l=10, r=10, t=40, b=10),
-        )
-        _add_unite_stars(fig, _get_unite_stars(df, panneaux, "shifts"))
-        return fig
-
-    # ---------------------------------------------------------- DATETIME (continu)
     if mode_axe == "datetime":
-        df["debut_dt"] = df["debut"].apply(h_to_dt)
-        df["fin_dt"]   = df["fin"].apply(h_to_dt)
+        return creer_gantt_calendrier(df.copy(), panneaux, largeur_we_jours)
+    return creer_gantt_heures(df.copy(), panneaux)
 
-        fig = px.timeline(
-            df,
-            x_start   = "debut_dt",
-            x_end     = "fin_dt",
-            y         = "machine",
-            color     = "type_panneau",
-            color_discrete_map = COULEURS_TYPE,
-            hover_data = ["MGH", "OF", "poste", "interrompu", "en_retard"],
-            labels    = {"type_panneau": "Type panneau", "machine": "Machine"},
-        )
-        fig.update_yaxes(categoryorder="array",
-                         categoryarray=list(reversed(ALL_MACHINES)))
 
-        # Ligne Maintenant
-        t_now = st.session_state.get("t_actuel", 0.0)
-        if t_now > 0:
-            x_now = h_to_dt(t_now)
-            fig.add_shape(type="line", x0=x_now, x1=x_now, y0=0, y1=1,
-                          xref="x", yref="paper",
-                          line=dict(color="#D98B2B", width=2.5))
-            fig.add_annotation(x=x_now, y=1.04, xref="x", yref="paper",
-                               text="▼ Maintenant", showarrow=False,
-                               font=dict(size=10, color="#D98B2B"), xanchor="center")
+def creer_gantt_calendrier(df: pd.DataFrame, panneaux: list,
+                           largeur_we_jours: float = 1.0) -> go.Figure:
+    """Gantt sur calendrier ouvré.
+    Axe X : jours ouvrés (6h–22h) côte à côte ; chaque week-end = colonne grise de largeur
+    réglable ; en-tête = numéro de semaine ; ligne par unité terminée en haut du diagramme."""
+    W      = float(largeur_we_jours) * SHIFT_HEURES          # largeur colonne week-end
+    t_now  = st.session_state.get("t_actuel", 0.0)
+    unites = [u for u in analyser_unites(df, panneaux) if u["prete"]]
+    M, U   = len(ALL_MACHINES), len(unites)
+    y_of   = {m: M - 1 - i for i, m in enumerate(ALL_MACHINES)}      # 1re machine en haut
 
-        # Due dates
-        vues = set()
-        for p in panneaux:
-            if p.due_date not in vues:
-                vues.add(p.due_date)
-                x_dt = h_to_dt(p.due_date)
-                fig.add_shape(type="line", x0=x_dt, x1=x_dt, y0=0, y1=1,
-                              xref="x", yref="paper",
-                              line=dict(color=RED, width=1.5, dash="dot"), opacity=0.85)
-                fig.add_annotation(x=x_dt, y=1.02, xref="x", yref="paper",
-                                   text=f"↓ {p.mgh_id}", showarrow=False,
-                                   font=dict(size=9, color=RED), xanchor="left")
+    def pos(h, fin=False):
+        return h + W * _idx_semaine(h_to_dt(h, fin=fin).date())
 
-        # Opérations interrompues
-        for _, row in df[df["interrompu"] == True].iterrows():
-            mid_dt = row["debut_dt"] + (row["fin_dt"] - row["debut_dt"]) / 2
-            fig.add_annotation(x=mid_dt, y=row["machine"], text="⚠️",
-                               showarrow=False, font=dict(size=14), yanchor="middle")
+    # ------------------------------------------------------------ étendue de l'axe
+    h_lo = float(df["debut"].min())
+    if t_now > 0:
+        h_lo = min(h_lo, t_now)
+    h_hi = float(df["fin"].max())
+    d_lo, d_hi = h_to_dt(h_lo).date(), h_to_dt(h_hi, fin=True).date()
 
-        x_axis = dict(showgrid=True, gridcolor=MGRAY, title="Date (temps continu)")
+    jours, d = [], d_lo
+    while d <= d_hi:
+        if d.weekday() < 5:
+            k  = int(np.busday_count(T_REFERENCE.date(), d))
+            x0 = k * SHIFT_HEURES + W * _idx_semaine(d)
+            jours.append((d, x0, x0 + SHIFT_HEURES))
+        d += timedelta(days=1)
+    semaines = {}
+    for j in jours:
+        semaines.setdefault(_idx_semaine(j[0]), []).append(j)
+    x_min, x_max = pos(h_lo) - 3, pos(h_hi, fin=True) + 9
+    span = x_max - x_min
 
-    # ---------------------------------------------------------- HEURES CUMULÉES
-    else:
-        fig            = go.Figure()
-        machines_ordre = list(reversed(ALL_MACHINES))
-        m_to_y         = {m: i for i, m in enumerate(machines_ordre)}
+    # ------------------------------------------------------------ géométrie verticale
+    y_max  = M - 0.5
+    y_min  = -0.5
+    plot_h = (y_max - y_min) * ROW_PX
+    head   = 42 / plot_h                                     # hauteur en-tête semaines (paper)
 
-        for _, row in df.iterrows():
-            y_pos   = m_to_y.get(row["machine"], 0)
-            couleur = COULEURS_TYPE.get(row["type_panneau"], "#888")
-            fig.add_shape(type="rect",
-                          x0=row["debut"], x1=row["fin"],
-                          y0=y_pos - 0.4, y1=y_pos + 0.4,
-                          fillcolor=couleur,
-                          line=dict(color="white", width=0.5),
-                          opacity=0.85 if not row["interrompu"] else 0.4)
-            if row["fin"] - row["debut"] > 10:
-                fig.add_annotation(x=(row["debut"] + row["fin"]) / 2, y=y_pos,
-                                   text=row["MGH"], showarrow=False,
-                                   font=dict(size=8, color="white"),
-                                   xanchor="center", yanchor="middle")
+    fig = go.Figure()
+    shapes, annots = [], []
 
-        vues = set()
-        for p in panneaux:
-            if p.due_date not in vues:
-                vues.add(p.due_date)
-                fig.add_shape(type="line",
-                              x0=p.due_date, x1=p.due_date,
-                              y0=-0.5, y1=len(machines_ordre) - 0.5,
-                              line=dict(color=RED, width=1.5, dash="dot"), opacity=0.85)
-                fig.add_annotation(x=p.due_date, y=len(machines_ordre) - 0.5,
-                                   text=f"↓ {p.mgh_id}", showarrow=False,
-                                   font=dict(size=9, color=RED), xanchor="left")
+    # ------------------------------------------------------------ bandes par poste
+    groupes, last = [], None
+    for m in ALL_MACHINES:
+        p = MACHINE_VERS_POSTE[m]
+        if p != last:
+            groupes.append([p, [m]]); last = p
+        else:
+            groupes[-1][1].append(m)
+    for g, (poste, ms) in enumerate(groupes):
+        ya, yb = y_of[ms[-1]] - 0.5, y_of[ms[0]] + 0.5
+        if g % 2 == 0:
+            shapes.append(dict(type="rect", xref="paper", yref="y", x0=0, x1=1, y0=ya, y1=yb,
+                               fillcolor=LGRAY, line_width=0, layer="below"))
+        annots.append(dict(xref="paper", yref="y", x=0, y=(ya + yb) / 2, xanchor="left",
+                           xshift=-150, text=f"<b>{poste.replace('_', ' ')}</b>",
+                           showarrow=False, font=dict(size=10, color=DGRAY)))
 
-        fig.update_yaxes(tickmode="array",
-                         tickvals=list(range(len(machines_ordre))),
-                         ticktext=machines_ordre)
-        x_axis = dict(showgrid=True, gridcolor=MGRAY, title="Heures cumulées (h)")
+    # ------------------------------------------------------------ lignes de jour
+    for d, x0, x1 in jours:
+        shapes.append(dict(type="line", xref="x", yref="y", x0=x0, x1=x0, y0=y_min, y1=y_max,
+                           line=dict(color="#E3E8F0", width=1), layer="below"))
 
+    # ------------------------------------------------------------ colonnes grises WEEK-END
+    idx_sem = sorted(semaines)
+    for w0, w1 in zip(idx_sem[:-1], idx_sem[1:]):
+        if w1 != w0 + 1:
+            continue
+        xa, xb = semaines[w0][-1][2], semaines[w1][0][1]
+        shapes.append(dict(type="rect", xref="x", yref="y", x0=xa, x1=xb, y0=y_min, y1=y_max,
+                           fillcolor="#C3CCDB", opacity=0.85, line_width=0, layer="below"))
+        for xl in (xa, xb):
+            shapes.append(dict(type="line", xref="x", yref="y", x0=xl, x1=xl, y0=y_min, y1=y_max,
+                               line=dict(color=DGRAY, width=1.4), layer="below"))
+        sam = semaines[w0][-1][0] + timedelta(days=1)
+        annots.append(dict(xref="x", yref="y", x=(xa + xb) / 2, y=(M - 1) / 2, textangle=-90,
+                           text=f"<b>WEEK-END</b>   {sam:%d/%m} – {sam + timedelta(days=1):%d/%m}",
+                           showarrow=False, font=dict(size=12, color="#4A5878")))
+
+    # ------------------------------------------------------------ en-tête : numéro de semaine
+    px_unit = 1250.0 / max(span, 1.0)
+    for n_w, w in enumerate(idx_sem):
+        jw = semaines[w]
+        xa, xb = jw[0][1], jw[-1][2]
+        lundi  = jw[0][0] - timedelta(days=jw[0][0].weekday())
+        iso    = lundi.isocalendar()
+        large  = (xb - xa) * px_unit
+        shapes.append(dict(type="rect", xref="x", yref="paper", x0=xa, x1=xb, y0=1.0, y1=1.0 + head,
+                           fillcolor=NAVY if n_w % 2 == 0 else "#1F4CA3", line=dict(color="white", width=1.5),
+                           layer="above"))
+        annee = f" · {iso[0]}" if (n_w == 0 or iso[1] == 1) else ""
+        if large >= 120:
+            lib = f"<b>SEMAINE {iso[1]}{annee}</b>"
+        elif iso[1] == 1 and n_w > 0 and large >= 70:
+            lib = f"<b>S{iso[1]} · {iso[0]}</b>"
+        else:
+            lib = f"<b>S{iso[1]}</b>"
+        annots.append(dict(xref="x", yref="paper", x=(xa + xb) / 2, y=1.0 + head * 0.68,
+                           text=lib, showarrow=False, font=dict(size=12, color="white")))
+        if large >= 72:
+            annots.append(dict(xref="x", yref="paper", x=(xa + xb) / 2, y=1.0 + head * 0.28,
+                               text=f"{jw[0][0]:%d/%m} → {jw[-1][0]:%d/%m}", showarrow=False,
+                               font=dict(size=9, color="#C9D6F2")))
+
+    # ------------------------------------------------------------ barres d'opérations
+    for pt in PANEL_TYPES:
+        sub = df[df["type_panneau"] == pt]
+        if sub.empty:
+            continue
+        xs, bs, ys, tx, cd, lc, lw, op, pat = [], [], [], [], [], [], [], [], []
+        for _, r in sub.iterrows():
+            if r["machine"] not in y_of:
+                continue
+            tard  = bool(r.get("en_retard", False))
+            inter = bool(r.get("interrompu", False))
+            info  = [r["MGH"], r["OF"], pt, r["poste"], r["machine"],
+                     h_to_str(r["debut"]), h_to_str_fin(r["fin"]),
+                     f"{r['fin'] - r['debut']:.1f} h" + ("  ·  ⚠ EN RETARD" if tard else "")
+                     + ("  ·  interrompue (aléa)" if inter else "")]
+            for ha, hb, w in split_op_semaine(r["debut"], r["fin"]):
+                bs.append(ha + W * w); xs.append(hb - ha); ys.append(y_of[r["machine"]])
+                tx.append(cle_unite(r["OF"], pt)); cd.append(info)
+                lc.append("white"); lw.append(0.8)
+                op.append(0.55 if inter else 0.95); pat.append("/" if inter else "")
+        fig.add_trace(go.Bar(
+            x=xs, base=bs, y=ys, orientation="h", width=0.76, name=pt,
+            marker=dict(color=COULEURS_TYPE.get(pt, "#888"), opacity=op,
+                        line=dict(color=lc, width=lw),
+                        pattern=dict(shape=pat, fgcolor="rgba(255,255,255,0.7)", size=7, solidity=0.4)),
+            text=tx, textposition="inside", insidetextanchor="middle",
+            textfont=dict(size=9, color="white"),
+            customdata=cd,
+            hovertemplate=("<b>%{customdata[0]}</b>  ·  %{customdata[1]}<br>"
+                           "Type : %{customdata[2]}<br>"
+                           "Poste : %{customdata[3]}  —  %{customdata[4]}<br>"
+                           "Début : %{customdata[5]}<br>Fin : %{customdata[6]}<br>"
+                           "Durée : %{customdata[7]}<extra></extra>"),
+        ))
+
+    # ------------------------------------------------------------ losanges « OF prêt pour export »
+    # UN losange par OF : à la fin de la dernière opération du dernier panneau de l'OF.
+    tick_y, tick_t = [y_of[m] for m in ALL_MACHINES], list(ALL_MACHINES)
+    dx, dy, dh = [], [], []
+    for u in unites:
+        dern = u["dernier"]
+        if dern is None:
+            continue
+        rows_p = df[df["MGH"] == dern.mgh_id]
+        last   = rows_p.loc[rows_p["fin"].idxmax()]
+        if last["machine"] not in y_of:
+            continue
+        dx.append(pos(last["fin"], fin=True)); dy.append(y_of[last["machine"]])
+        dh.append(f"<b>✔ {u['of']} — OF TERMINÉ · PRÊT POUR EXPORT</b><br>"
+                  f"Dernier panneau : {dern.mgh_id} ({dern.panel_type})<br>"
+                  f"Fin : {h_to_str_fin(last['fin'])} ({last['poste']} — {last['machine']})<br>"
+                  f"{u['n_fini']}/{u['n']} panneaux terminés<br>"
+                  f"Servitude : {h_to_str_fin(u['due_h'])} · {_txt_ecart(u['ecart_h'])}"
+                  + ("" if u["complete"] else
+                     f"<br>⚠ OF de {u['n']} panneau(x) seulement ({len(PANEL_TYPES)} attendus)"))
+    if dx:
+        fig.add_trace(go.Scatter(
+            x=dx, y=dy, mode="markers", name="◆ OF terminé — prêt pour export",
+            marker=dict(symbol="diamond", size=18, color="#FFD500", line=dict(color=NAVY, width=2.2)),
+            hovertext=dh, hoverinfo="text", cliponaxis=False))
+
+    # ------------------------------------------------------------ Maintenant
+    if t_now > 0:
+        xn = pos(t_now)
+        shapes.append(dict(type="line", xref="x", yref="y", x0=xn, x1=xn, y0=y_min, y1=y_max,
+                           line=dict(color="#FF6B00", width=2.6), layer="above"))
+        annots.append(dict(xref="x", yref="paper", x=xn, y=1.0 + head, yanchor="bottom", yshift=4,
+                           text=f"<b>▼ MAINTENANT · {h_to_dt(t_now):%d/%m %H:%M}</b>",
+                           showarrow=False, bgcolor="#FF6B00", borderpad=3,
+                           font=dict(size=11, color="white")))
+
+    # ------------------------------------------------------------ axes
+    n_j = len(jours)
+    tv, tt = [], []
+    for d, x0, x1 in jours:
+        tv.append((x0 + x1) / 2)
+        if n_j <= 28:
+            tt.append(f"{JOURS_FR[d.weekday()]}<br>{d:%d/%m}")
+        elif n_j <= 55:
+            tt.append(f"{JOURS_FR[d.weekday()][0]}<br>{d:%d}")
+        else:
+            tt.append(f"{d:%d/%m}" if d.weekday() == 0 else "")
+
+    fig.update_layout(
+        shapes=shapes, annotations=annots, barmode="overlay",
+        height=int(plot_h + 112 + 118),
+        plot_bgcolor=WHITE, paper_bgcolor=WHITE,
+        font=dict(family="Segoe UI, Arial", size=12, color=NAVY),
+        uniformtext=dict(minsize=8, mode="hide"),
+        hoverlabel=dict(bgcolor="white", font=dict(size=12, color=NAVY), bordercolor=MGRAY),
+        xaxis=dict(range=[x_min, x_max], tickmode="array", tickvals=tv, ticktext=tt,
+                   ticks="", showgrid=False, zeroline=False, tickfont=dict(size=10, color=NAVY),
+                   title=dict(text="Calendrier ouvré — lun–ven, "
+                                   f"{SHIFT_START}h–{SHIFT_START+SHIFT_HEURES}h "
+                                   "(les nuits ne sont pas représentées)",
+                              font=dict(size=11, color=DGRAY))),
+        yaxis=dict(range=[y_min, y_max], tickmode="array", tickvals=tick_y, ticktext=tick_t,
+                   tickfont=dict(size=11, color=NAVY), showgrid=False, zeroline=False,
+                   fixedrange=True),
+        legend=dict(orientation="h", x=0, y=-(58 / plot_h), yanchor="top",
+                    bgcolor="rgba(255,255,255,0.95)", bordercolor=MGRAY, borderwidth=1,
+                    font=dict(size=11)),
+        margin=dict(l=158, r=16, t=112, b=118),
+    )
+    return fig
+
+
+def creer_gantt_heures(df: pd.DataFrame, panneaux: list) -> go.Figure:
+    """Gantt en heures travaillées cumulées (0, 100, 200...)."""
+    fig            = go.Figure()
+    machines_ordre = list(reversed(ALL_MACHINES))
+    m_to_y         = {m: i for i, m in enumerate(machines_ordre)}
+
+    for _, row in df.iterrows():
+        y_pos   = m_to_y.get(row["machine"], 0)
+        couleur = COULEURS_TYPE.get(row["type_panneau"], "#888")
+        fig.add_shape(type="rect",
+                      x0=row["debut"], x1=row["fin"],
+                      y0=y_pos - 0.4, y1=y_pos + 0.4,
+                      fillcolor=couleur,
+                      line=dict(color="white", width=0.5),
+                      opacity=0.85 if not row["interrompu"] else 0.4)
+        if row["fin"] - row["debut"] > 10:
+            fig.add_annotation(x=(row["debut"] + row["fin"]) / 2, y=y_pos,
+                               text=cle_unite(row["OF"], row["type_panneau"]), showarrow=False,
+                               font=dict(size=8, color="white"),
+                               xanchor="center", yanchor="middle")
+
+    vues = set()
+    for p in panneaux:
+        if p.due_date not in vues:
+            vues.add(p.due_date)
+            fig.add_shape(type="line",
+                          x0=p.due_date, x1=p.due_date,
+                          y0=-0.5, y1=len(machines_ordre) - 0.5,
+                          line=dict(color=RED, width=1.5, dash="dot"), opacity=0.85)
+            fig.add_annotation(x=p.due_date, y=len(machines_ordre) - 0.5,
+                               text=f"↓ {p.mgh_id}", showarrow=False,
+                               font=dict(size=9, color=RED), xanchor="left")
+
+    hx, hy, hh = [], [], []
+    for u in analyser_unites(df, panneaux):
+        if not u["prete"] or u["dernier"] is None:
+            continue
+        rows_p = df[df["MGH"] == u["dernier"].mgh_id]
+        last   = rows_p.loc[rows_p["fin"].idxmax()]
+        hx.append(last["fin"]); hy.append(m_to_y.get(last["machine"], 0))
+        hh.append(f"<b>✔ {u['of']} — OF TERMINÉ · PRÊT POUR EXPORT</b><br>"
+                  f"Fin : {h_to_str_fin(last['fin'])}")
+    if hx:
+        fig.add_trace(go.Scatter(
+            x=hx, y=hy, mode="markers", name="◆ OF terminé — prêt pour export",
+            marker=dict(symbol="diamond", size=16, color="#FFD500", line=dict(color=NAVY, width=2)),
+            hovertext=hh, hoverinfo="text"))
+
+    fig.update_yaxes(tickmode="array",
+                     tickvals=list(range(len(machines_ordre))),
+                     ticktext=machines_ordre)
     fig.update_layout(
         height       = max(550, len(ALL_MACHINES) * 26),
         plot_bgcolor = WHITE, paper_bgcolor = WHITE,
-        font         = dict(family="IBM Plex Sans, Arial", size=12, color=NAVY),
-        xaxis        = x_axis,
+        font         = dict(family="Segoe UI, Arial", size=12, color=NAVY),
+        xaxis        = dict(showgrid=True, gridcolor=MGRAY, title="Heures travaillées cumulées (h)"),
         yaxis        = dict(title="Bâti / Machine", tickfont=dict(size=11, color=NAVY)),
         legend       = dict(title=dict(text="Type panneau"),
-                            bgcolor="rgba(255,255,255,0.9)",
-                            bordercolor=MGRAY, borderwidth=1),
+                            bgcolor="rgba(255,255,255,0.9)", bordercolor=MGRAY, borderwidth=1),
         margin       = dict(l=10, r=10, t=40, b=10),
     )
-    # Étoiles ⭐ — fin de chaque lot de 7 panneaux (une unité complète)
-    _add_unite_stars(fig, _get_unite_stars(df, panneaux, mode_axe))
     return fig
 
 # =============================================================================
@@ -700,8 +635,8 @@ def exporter_excel(df: pd.DataFrame, panneaux: list) -> bytes:
         df_exp = df.copy()
         df_exp["OF"]        = df_exp["MGH"].map(of_map).fillna("—")
         df_exp["Début"]     = df_exp["debut"].apply(h_to_str)
-        df_exp["Fin"]       = df_exp["fin"].apply(h_to_str)
-        df_exp["Manut."]    = df_exp["fin_manut"].apply(h_to_str)
+        df_exp["Fin"]       = df_exp["fin"].apply(h_to_str_fin)
+        df_exp["Manut."]    = df_exp["fin_manut"].apply(h_to_str_fin)
         df_exp["Servitude"] = df_exp["MGH"].map(due_map).apply(
             lambda h: h_to_str(h) if h else "—")
         df_exp["En retard"] = df_exp.apply(
@@ -724,9 +659,9 @@ def exporter_excel(df: pd.DataFrame, panneaux: list) -> bytes:
                 "Type"         : p.panel_type,
                 "Statut"       : p.statut.value,
                 "Dispo matière": h_to_str(p.release_date),
-                "Servitude"    : h_to_str(p.due_date),
+                "Servitude"    : h_to_str_fin(p.due_date),
                 "Route"        : " → ".join(get_route(p.panel_type)),
-                "Fin réelle"   : h_to_str(fin_r) if fin_r else "—",
+                "Fin réelle"   : h_to_str_fin(fin_r) if fin_r else "—",
                 "Retard (h)"   : round(max(0.0, fin_r - p.due_date), 1) if fin_r else "—",
                 "Livraison"    : ("✓ À temps" if fin_r and fin_r <= p.due_date
                                   else ("⚠ Retard" if fin_r else "En cours")),
@@ -735,6 +670,64 @@ def exporter_excel(df: pd.DataFrame, panneaux: list) -> bytes:
             writer, sheet_name="Résumé panneaux", index=False)
 
     return buf.getvalue()
+
+# =============================================================================
+# 7b. SUIVI DES UNITÉS — cartes « prête pour export »
+# =============================================================================
+
+def afficher_suivi_unites(df, panneaux):
+    unites = analyser_unites(df, panneaux)
+    if not unites:
+        return
+    pretes = [u for u in unites if u["prete"]]
+    autres = [u for u in unites if not u["prete"]]
+
+    st.markdown('<div class="aa-section">Suivi des OF — terminés et prêts pour export</div>',
+                unsafe_allow_html=True)
+
+    for i0 in range(0, len(pretes), 3):
+        cols = st.columns(3)
+        for col, u in zip(cols, pretes[i0:i0 + 3]):
+            with col:
+                retard = u["ecart_h"] < 0
+                coul   = RED if retard else GREEN
+                dern   = u["dernier"]
+                avert  = ("" if u["complete"] else
+                          f'<br><span style="color:#B26A00;font-weight:600">⚠ OF de {u["n"]} '
+                          f'panneau(x) seulement ({len(PANEL_TYPES)} attendus)</span>')
+                st.markdown(
+                    f'<div style="border:2px solid {coul};border-radius:10px;overflow:hidden;'
+                    f'background:white;margin-bottom:6px">'
+                    f'<div style="background:{coul};color:white;padding:8px 12px;font-weight:700;'
+                    f'font-size:0.95rem">◆ {u["of"]} — TERMINÉ · PRÊT POUR EXPORT</div>'
+                    f'<div style="padding:10px 12px;color:{NAVY};font-size:0.9rem;line-height:1.55">'
+                    f'<b>{u["n_fini"]}/{u["n"]}</b> panneaux terminés'
+                    f'<div style="background:{MGRAY};border-radius:6px;height:8px;margin:4px 0 8px 0">'
+                    f'<div style="background:{coul};width:100%;height:8px;border-radius:6px"></div></div>'
+                    f'Fin prévue : <b>{h_to_str_fin(u["fin_h"])}</b><br>'
+                    f'Servitude : <b>{h_to_str_fin(u["due_h"])}</b><br>'
+                    f'<span style="color:{coul};font-weight:700">'
+                    f'{"⚠ " if retard else "✓ "}{_txt_ecart(u["ecart_h"])}</span><br>'
+                    f'<span style="color:{DGRAY};font-size:0.8rem">Dernier panneau : '
+                    f'{dern.mgh_id if dern else "—"} ({dern.panel_type if dern else "—"})</span>'
+                    f'{avert}</div></div>', unsafe_allow_html=True)
+                mghs = [p.mgh_id for p in u["panneaux"]]
+                xl = exporter_excel(df[df["MGH"].isin(mghs)], u["panneaux"])
+                st.download_button(
+                    f"⬇️ Exporter {u['of']} (Excel)", data=xl,
+                    file_name=f"{u['of']}_planning_{datetime.now():%Y%m%d_%H%M}.xlsx",
+                    mime=("application/vnd.openxmlformats-officedocument"
+                          ".spreadsheetml.sheet"),
+                    key=f"exp_unite_{u['of']}", width="stretch",
+                )
+
+    if autres:
+        with st.expander(f"OF non terminés dans ce planning ({len(autres)})"):
+            st.dataframe(pd.DataFrame([{
+                "OF"        : u["of"],
+                "Panneaux"  : f'{u["n_fini"]}/{u["n"]} terminés',
+                "Types"     : ", ".join(p.panel_type for p in u["panneaux"]),
+            } for u in autres]), use_container_width=True)
 
 # =============================================================================
 # 8. SESSION STATE
@@ -801,30 +794,22 @@ with st.sidebar:
 
     st.markdown(
         f'<div style="text-align:center;padding:4px 0 8px">'
-        f'<p style="color:{WHITE};font-size:1.0rem;font-weight:600;margin:0;'
-        f'font-family:\'Space Grotesk\',sans-serif">✈️ BOMBARDIER</p>'
-        f'<p style="color:{CYAN};font-size:0.68rem;letter-spacing:0.16em;'
-        f'text-transform:uppercase;margin:4px 0 0;'
-        f'font-family:\'IBM Plex Mono\',monospace">FJSP Scheduler</p>'
+        f'<p style="color:{WHITE};font-size:1.05rem;font-weight:700;margin:0">✈️ BOMBARDIER</p>'
+        f'<p style="color:{CYAN};font-size:0.72rem;letter-spacing:0.14em;'
+        f'text-transform:uppercase;margin:4px 0 0">FJSP Scheduler</p>'
         f'</div>', unsafe_allow_html=True)
     st.divider()
 
-    # Mode agent — badge instrumentation (accent gauche, coins carrés)
+    # Mode agent
     if mode == "PPO":
         st.markdown(
-            f'<div style="background:rgba(30,158,106,0.16);color:{WHITE};'
-            f'border-left:3px solid {GREEN};border-radius:3px;'
-            f'padding:7px 12px;font-weight:600;font-size:0.82rem;'
-            f'font-family:\'IBM Plex Mono\',monospace;letter-spacing:0.02em">'
-            f'AGENT PPO — ACTIF</div>',
+            f'<div style="background:#1A7A3C;color:#fff;border-radius:20px;'
+            f'padding:6px 14px;font-weight:700;text-align:center">🤖 Agent PPO actif</div>',
             unsafe_allow_html=True)
     else:
         st.markdown(
-            f'<div style="background:rgba(0,119,200,0.16);color:{WHITE};'
-            f'border-left:3px solid {CYAN};border-radius:3px;'
-            f'padding:7px 12px;font-weight:600;font-size:0.82rem;'
-            f'font-family:\'IBM Plex Mono\',monospace;letter-spacing:0.02em">'
-            f'MODE EDD — FALLBACK</div>',
+            f'<div style="background:#005F8A;color:#fff;border-radius:20px;'
+            f'padding:6px 14px;font-weight:700;text-align:center">📐 Mode EDD</div>',
             unsafe_allow_html=True)
         st.caption(f"Modèle attendu :\n`{MODEL_PATH}`")
 
@@ -832,9 +817,8 @@ with st.sidebar:
 
     # Heure courante
     st.markdown(
-        f'<p style="color:rgba(255,255,255,0.55);font-size:0.72rem;font-weight:600;'
-        f'text-transform:uppercase;letter-spacing:0.1em;'
-        f'font-family:\'IBM Plex Mono\',monospace">Heure courante</p>',
+        f'<p style="color:{MGRAY};font-size:0.8rem;font-weight:600;'
+        f'text-transform:uppercase;letter-spacing:0.08em">Heure courante</p>',
         unsafe_allow_html=True)
     d_sel  = st.date_input("Date", value=T_REFERENCE.date(), label_visibility="collapsed")
     h_sel  = st.time_input("Heure",
@@ -842,7 +826,9 @@ with st.sidebar:
                             label_visibility="collapsed")
     dt_sel = datetime.combine(d_sel, h_sel)
     st.session_state.t_actuel = max(0.0, dt_to_h(dt_sel))
-    st.caption(f"t absolu = {st.session_state.t_actuel:.1f}h")
+    st.caption(f"t absolu = {st.session_state.t_actuel:.1f}h travaillées")
+    st.caption(f"Hors horaires ({SHIFT_START+SHIFT_HEURES}h–{SHIFT_START}h, week-end) : "
+               f"ramené à l'ouverture suivante. Prise en compte : {h_to_str(st.session_state.t_actuel)}")
 
     st.divider()
 
@@ -855,23 +841,18 @@ with st.sidebar:
     stock_color = RED if n_std >= CAPACITE_STOCK_STANDBY else \
                   ORANGE if stock_pct >= 0.7 else GREEN
     st.markdown(
-        f'<div style="color:rgba(255,255,255,0.55);font-size:0.8rem;'
-        f'font-family:\'IBM Plex Mono\',monospace">'
-        f'PANNEAUX &nbsp;<b style="color:{WHITE}">{n_pan}</b><br>'
-        f'EN COURS &nbsp;<b style="color:{WHITE}">{n_enc}</b> &nbsp;&nbsp;'
-        f'STANDBY &nbsp;<b style="color:{WHITE}">{n_std}</b></div>',
+        f'<div style="color:{MGRAY};font-size:0.82rem">'
+        f'📋 <b style="color:{WHITE}">{n_pan}</b> panneau(x)<br>'
+        f'⚙️ <b style="color:{WHITE}">{n_enc}</b> en cours &nbsp;'
+        f'🔴 <b style="color:{WHITE}">{n_std}</b> standby</div>',
         unsafe_allow_html=True)
     st.markdown(
-        f'<div style="margin-top:8px">'
-        f'<div style="font-size:0.68rem;color:rgba(255,255,255,0.45);'
-        f'font-family:\'IBM Plex Mono\',monospace;letter-spacing:0.06em">'
-        f'STOCK STANDBY</div>'
-        f'<div style="background:rgba(255,255,255,0.1);border-radius:3px;'
-        f'height:8px;margin-top:4px">'
+        f'<div style="margin-top:6px">'
+        f'<div style="font-size:0.72rem;color:{MGRAY}">Stock STANDBY</div>'
+        f'<div style="background:#1a2a4a;border-radius:6px;height:10px;margin-top:3px">'
         f'<div style="background:{stock_color};width:{min(stock_pct*100,100):.0f}%;'
-        f'height:8px;border-radius:3px"></div></div>'
-        f'<div style="font-size:0.7rem;color:{stock_color};margin-top:3px;'
-        f'font-family:\'IBM Plex Mono\',monospace">'
+        f'height:10px;border-radius:6px"></div></div>'
+        f'<div style="font-size:0.72rem;color:{stock_color};margin-top:2px">'
         f'{n_std} / {CAPACITE_STOCK_STANDBY}</div></div>',
         unsafe_allow_html=True)
     st.divider()
@@ -939,7 +920,7 @@ def _render_file_production(key_suffix: str = ""):
             "Avancement"   : avancement_pct,
             "Prochaine op.": prochaine_op,       # [I5]
             "Dispo mat."   : h_to_str(p.release_date),
-            "Servitude"    : h_to_str(p.due_date),
+            "Servitude"    : h_to_str_fin(p.due_date),
             "Durée th."    : f"{d:.0f}h",
             "Facteur"      : f"{fenetre/d:.2f}x" if d > 0 else "—",
             "Risque"       : "⚠️" if d > 0 and fenetre/d < 1.5 else "✓",
@@ -978,33 +959,19 @@ def _render_file_production(key_suffix: str = ""):
     st.markdown('</div>', unsafe_allow_html=True)
 
 # =============================================================================
-# 11. HEADER TOP + NAVIGATION
+# 11. HEADER + NAVIGATION
 # =============================================================================
 
-st.markdown(f"""
-<div class="header-top">
-    <div class="header-logo">
-        <div>
-            <p class="header-logo-text">✈️ Airbus<br>Atlantic</p>
-        </div>
-    </div>
-    <div class="header-divider"></div>
-    <div class="header-title">FJSP Scheduler — Bombardier Global 7500</div>
-    <div class="header-divider"></div>
-    <div class="header-mode">
-        <span class="header-mode-label">Agent</span>
-        <span class="header-mode-value">{mode}</span>
-    </div>
-</div>
-<div class="aa-header">
-    <p class="aa-header-sub" style="margin: 0; text-align: center;">
-        Ligne de fabrication de panneaux — Bombardier 
-    </p>
-    <p class="aa-header-time" style="margin: 8px 0 0; text-align: center;">
-        ⏱️ Heure actuelle : <strong>{h_to_str(st.session_state.t_actuel)}</strong>
-    </p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    f'<div class="aa-header">'
+    f'<p class="aa-header-title">✈️ Système d\'Ordonnancement FJSP</p>'
+    f'<p class="aa-header-sub">'
+    f'Ligne de fabrication de panneaux — Bombardier &nbsp;|&nbsp; '
+    f'Agent : <strong>{mode}</strong> &nbsp;|&nbsp; '
+    f't = {h_to_str(st.session_state.t_actuel)}'
+    f'</p></div>',
+    unsafe_allow_html=True,
+)
 
 PAGE = st.radio(
     "Navigation",
@@ -1102,18 +1069,19 @@ if PAGE == "📋 Commandes":
                 route_p       = get_route(type_panneau)
                 op_idx        = next(
                     (i for i, p in enumerate(route_p) if p == poste_machine), 0)
-                steps_html = '<div class="route-flow">'
+                steps_html = ""
                 for i, p in enumerate(route_p):
                     if i < op_idx:
-                        steps_html += f'<span class="route-step route-done">{p}</span>'
+                        steps_html += f'<span class="route-step route-done">✅ {p}</span> → '
                     elif i == op_idx:
-                        steps_html += f'<span class="route-step route-current">{p}</span>'
+                        steps_html += f'<span class="route-step route-current">⚙️ {p}</span> → '
                     else:
                         steps_html += f'<span class="route-step route-todo">{p}</span>'
-                    if i < len(route_p) - 1:
-                        steps_html += '<span class="route-connector">┄┄&gt;</span>'
-                steps_html += '</div>'
-                st.markdown(steps_html, unsafe_allow_html=True)
+                        if i < len(route_p) - 1:
+                            steps_html += " → "
+                st.markdown(
+                    f'<div style="margin:8px 0;line-height:2.2">{steps_html}</div>',
+                    unsafe_allow_html=True)
 
             # Champs STANDBY
             raison_standby = ""
@@ -1306,7 +1274,7 @@ if PAGE == "📋 Commandes":
                     if due_u - rel_u < duree_theo:
                         alertes.append(f"⚠️ {pt} : {due_u-rel_u:.0f}h / {duree_theo:.0f}h")
                 if n_aj:
-                    st.success(f"✅ {n_aj} panneau(x) ajoutés — servitude : {h_to_str(due_u)}")
+                    st.success(f"✅ {n_aj} panneau(x) ajoutés — servitude : {h_to_str_fin(due_u)}")
                     for a in alertes:
                         st.warning(a)
                     st.rerun()
@@ -1381,7 +1349,7 @@ elif PAGE == "⚙️ Ordonnancement":
                 "Statut"     : p.statut.value,
                 "Op. courante": p.route[p.op_courante] if p.op_courante < len(p.route) else "—",
                 "Dispo mat." : h_to_str(p.release_date),
-                "Servitude"  : h_to_str(p.due_date),
+                "Servitude"  : h_to_str_fin(p.due_date),
                 "Durée théo.": f"{d:.0f}h",
                 "Facteur"    : f"{fct:.2f}x",
                 "Risque"     : "⚠️ Serré" if fct < 1.5 else "✓ OK",
@@ -1429,7 +1397,7 @@ elif PAGE == "📊 Résultats":
             f'<div class="aa-card aa-card-accent">'
             f'<div class="aa-card-title">Makespan</div>'
             f'<div class="aa-card-value">{met["makespan"]:.0f}h</div>'
-            f'<div class="aa-card-sub">Fin : {h_to_str(met["makespan"])}</div>'
+            f'<div class="aa-card-sub">Fin : {h_to_str_fin(met["makespan"])}</div>'
             f'</div>', unsafe_allow_html=True)
         k2.markdown(
             f'<div class="aa-card {acc_taux}">'
@@ -1461,33 +1429,33 @@ elif PAGE == "📊 Résultats":
             mode_axe_label = st.radio(
                 "Axe X",
                 [
-                    "📅 Dates calendaires continues",
-                    f"🏭 Calendrier shifts ({SHIFT_HEURES}h/jour, {SHIFT_START}h–{SHIFT_START+SHIFT_HEURES}h)",
-                    "⏱️ Heures cumulées (0, 100, 200...)",
+                    f"📅 Calendrier ouvré (lun–ven, {SHIFT_START}h–{SHIFT_START+SHIFT_HEURES}h)",
+                    "⏱️ Heures travaillées cumulées (0, 100, 200...)",
                 ],
                 horizontal=True,
             )
+        mode_axe = "datetime" if "Calendrier" in mode_axe_label else "heures"
         with gc2:
-            st.markdown("<br>", unsafe_allow_html=True)
+            largeur_we = 1.0
+            if mode_axe == "datetime":
+                largeur_we = st.slider("Largeur colonne week-end (jours)", 0.5, 4.0, 1.0, 0.5)
             st.caption(
                 f"🟠 Ligne Maintenant = **{h_to_str(st.session_state.t_actuel)}**  \n"
                 f"Changer la date dans la ◀️ sidebar pour déplacer la ligne."
             )
-            if "shifts" in mode_axe_label.lower() or "14h" in mode_axe_label:
-                st.caption(
-                    f"🌙 Les zones grises = hors shift.  \n"
-                    f"✂️ = opération coupée sur 2 jours."
-                )
 
-        if "shifts" in mode_axe_label or f"{SHIFT_HEURES}h" in mode_axe_label:
-            mode_axe = "shifts"
-        elif "calendaires" in mode_axe_label:
-            mode_axe = "datetime"
-        else:
-            mode_axe = "heures"
         # La ligne orange utilise t_actuel courant — se met à jour sans réordonnancer
-        fig = creer_gantt(df, st.session_state.panneaux, mode_axe)
-        st.plotly_chart(fig, use_container_width=True, key=f"gantt_{st.session_state.t_actuel:.0f}")
+        fig = creer_gantt(df, st.session_state.panneaux, mode_axe, largeur_we)
+        st.plotly_chart(fig, use_container_width=True,
+                        key=f"gantt_{st.session_state.t_actuel:.0f}_{largeur_we}")
+        if mode_axe == "datetime":
+            st.caption(
+                "▒ **Colonne grise** = week-end (séparation des semaines) · "
+                "texte dans les barres = **numéro d'OF** · "
+                "**◆ losange jaune** = OF terminé, **prêt pour export** (à la fin du dernier "
+                "panneau de l'OF) · **hachuré** = opération interrompue (aléa)"
+            )
+        afficher_suivi_unites(df, st.session_state.panneaux)
         st.divider()
 
         # Graphique utilisation des bâtis
@@ -1510,7 +1478,7 @@ elif PAGE == "📊 Résultats":
             )
             fig_util.update_layout(
                 plot_bgcolor=WHITE, paper_bgcolor=WHITE,
-                font=dict(family="IBM Plex Sans", color=NAVY),
+                font=dict(family="Segoe UI", color=NAVY),
                 height=500, coloraxis_showscale=False,
                 xaxis_tickformat=".0%",
             )
@@ -1527,7 +1495,7 @@ elif PAGE == "📊 Résultats":
         t_now   = st.session_state.t_actuel
         df_aff  = df.copy()
         df_aff["Début"] = df_aff["debut"].apply(h_to_str)
-        df_aff["Fin"]   = df_aff["fin"].apply(h_to_str)
+        df_aff["Fin"]   = df_aff["fin"].apply(h_to_str_fin)
 
         def _etat_reel(r):
             if r["interrompu"]:
@@ -1617,7 +1585,7 @@ elif PAGE == "🔔 Aléas":
                 aff_enc["Avancement"] = aff_enc.apply(
                     lambda r: f"{int((t_now-r['debut'])/max(r['fin']-r['debut'],1)*100)}%",
                     axis=1)
-                aff_enc["Fin prévue"] = aff_enc["fin"].apply(h_to_str)
+                aff_enc["Fin prévue"] = aff_enc["fin"].apply(h_to_str_fin)
                 aff_enc["Début"]      = aff_enc["debut"].apply(h_to_str)
                 st.dataframe(
                     aff_enc[["MGH", "type_panneau", "machine", "Début", "Avancement", "Fin prévue"]],
@@ -1658,7 +1626,7 @@ elif PAGE == "🔔 Aléas":
                             "poste"   : row["poste"],
                             "avancement": int((t_now - row["debut"]) /
                                              max(row["fin"] - row["debut"], 1) * 100),
-                            "fin_prevue": h_to_str(row["fin"]),
+                            "fin_prevue": h_to_str_fin(row["fin"]),
                         }
             else:
                 en_cours_maintenant = en_cours_p
@@ -1705,14 +1673,13 @@ elif PAGE == "🔔 Aléas":
                 st.markdown(_render_route_html(p_sel), unsafe_allow_html=True)
 
                 duree_sb = st.number_input(
-                    "Durée standby estimée (h)", 0.5, 200.0, 4.0, 0.5)
+                    "Durée standby estimée (h travaillées)", 0.5, 200.0, 4.0, 0.5)
                 t_retour = t_now + duree_sb
 
                 st.markdown(
-                    f'<div style="background:#FBF1E2;border-radius:4px;'
-                    f'padding:9px 12px;border-left:3px solid {ORANGE};'
-                    f'font-size:0.85rem">'
-                    f'Retour estimé : <b>{h_to_str(t_retour)}</b> &nbsp;|&nbsp; '
+                    f'<div style="background:#FFF3CD;border-radius:6px;'
+                    f'padding:8px 12px;border-left:3px solid {ORANGE}">'
+                    f'⚠️ Retour estimé : <b>{h_to_str(t_retour)}</b> &nbsp;|&nbsp; '
                     f'Places restantes : <b>{CAPACITE_STOCK_STANDBY - n_standby - 1}</b>'
                     f'</div>', unsafe_allow_html=True)
 
@@ -1724,7 +1691,7 @@ elif PAGE == "🔔 Aléas":
                         if res.get("succes"):
                             st.success(
                                 f"✅ Aléa déclaré — bâti **{res['machine_liberee']}** "
-                                f"libre à {h_to_str(res['t_libre'])}")
+                                f"libre à {h_to_str_fin(res['t_libre'])}")
                             if res["candidats"]:
                                 st.info(f"💡 Candidats slot : "
                                         f"**{', '.join(res['candidats'])}**")
